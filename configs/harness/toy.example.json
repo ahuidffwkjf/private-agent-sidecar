@@ -1,0 +1,7 @@
+{
+  "kind": "toy",
+  "seed": 7,
+  "samples": 40,
+  "node_index": 0,
+  "non_iid": false
+}

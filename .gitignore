@@ -1,0 +1,20 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.db
+*.db-shm
+*.db-wal
+.pytest_cache/
+demo-data/
+
+runs/
+build/
+dist/
+*.egg-info/
+
+# macOS and local office artifacts
+.DS_Store
+*.docx
+
+# unrelated embedded research workspace
+NanoJev-main/

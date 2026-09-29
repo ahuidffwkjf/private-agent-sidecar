@@ -1,0 +1,25 @@
+{
+  "name": "deepseek",
+  "mode": "command",
+  "train_command": [
+    "python",
+    "/path/to/deepseek_harness/train_entrypoint.py",
+    "--request",
+    "{input}",
+    "--response",
+    "{output}"
+  ],
+  "evaluate_command": [
+    "python",
+    "/path/to/deepseek_harness/evaluate_entrypoint.py",
+    "--request",
+    "{input}",
+    "--response",
+    "{output}"
+  ],
+  "update_format": "safetensors",
+  "mode_options": {
+    "lora": true,
+    "full_finetune": false
+  }
+}

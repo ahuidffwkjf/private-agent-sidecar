@@ -1,0 +1,10 @@
+{
+  "nodes": 8,
+  "rounds": 30,
+  "seed": 7,
+  "topologies": ["star", "hierarchical", "gossip"],
+  "dp_clip_norm": 0.0,
+  "dp_noise_std": 0.0,
+  "strategies": ["fedavg", "fedprox", "secure_fedavg", "median", "trimmed_mean", "krum"],
+  "scenarios": ["none", "scale", "sign_flip", "random_byzantine"]
+}

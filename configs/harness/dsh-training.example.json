@@ -1,0 +1,9 @@
+{
+  "kind": "dsh-training",
+  "controller_url": "http://127.0.0.1:8081",
+  "registry_token": "replace-with-registry-token",
+  "timeout": 900,
+  "poll_interval": 1,
+  "task_capabilities": ["python"],
+  "task_tools": ["dsh", "python"]
+}

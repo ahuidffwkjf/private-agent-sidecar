@@ -1,0 +1,10 @@
+{
+  "model_id": "toy-linear-v1",
+  "strategy": "fedavg",
+  "local_steps": 8,
+  "learning_rate": 0.2,
+  "proximal_mu": 0.01,
+  "rounds": 10,
+  "timeout_seconds": 30,
+  "participants": []
+}

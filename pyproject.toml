@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "private-agent-sidecar"
+version = "0.2.0"
+description = "End-to-end encrypted messaging and federated learning for autonomous agents"
+requires-python = ">=3.9"
+dependencies = ["cryptography>=42,<51"]
+
+[project.optional-dependencies]
+dev = []
+deepseek = ["torch", "transformers", "peft", "safetensors"]
+
+[project.scripts]
+agent-sidecar = "agent_sidecar.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agent_sidecar*"]

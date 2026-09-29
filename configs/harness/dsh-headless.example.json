@@ -1,0 +1,8 @@
+{
+  "kind": "dsh-headless",
+  "dsh_bin": "dsh",
+  "profile": "headless",
+  "timeout": 900,
+  "permission_mode": "workspace-write",
+  "telemetry_mode": "DISABLED"
+}
