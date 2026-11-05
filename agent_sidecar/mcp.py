@@ -14,13 +14,16 @@ def tools_for(sidecar: Any) -> list[Dict[str, Any]]:
         {"name": "trace.list", "description": "List local trace events.", "inputSchema": {"type": "object", "properties": {"event_type": {"type": "string"}, "limit": {"type": "integer"}}}},
         {"name": "skill.install", "description": "Store a user-designed Skill manifest; execution is disabled unless an explicit runner policy enables it.", "inputSchema": {"type": "object", "required": ["skill_id", "name", "version"], "properties": {"skill_id": {"type": "string"}, "name": {"type": "string"}, "version": {"type": "string"}, "capabilities": {"type": "array"}, "instructions": {"type": "string"}, "execution": {"type": "string"}}}},
         {"name": "skill.list", "description": "List local Skill manifests.", "inputSchema": {"type": "object", "properties": {"enabled_only": {"type": "boolean"}}}},
+        {"name": "skill.catalog.list", "description": "List the built-in WeChat full-function Skill catalog and local installation state.", "inputSchema": {"type": "object", "properties": {}}},
+        {"name": "skill.catalog.install", "description": "Install selected WeChat function Skills, or the full catalog when skill_ids is omitted.", "inputSchema": {"type": "object", "properties": {"skill_ids": {"type": "array", "items": {"type": "string"}}}}},
         {"name": "project.create", "description": "Create or join a local project trust scope.", "inputSchema": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "project_id": {"type": "string"}, "owner_id": {"type": "string"}}}},
         {"name": "project.list", "description": "List local projects and temporary project trust members.", "inputSchema": {"type": "object", "properties": {}}},
         {"name": "project.trust", "description": "Temporarily trust a registered Harness for one active project.", "inputSchema": {"type": "object", "required": ["project_id", "agent_id"], "properties": {"project_id": {"type": "string"}, "agent_id": {"type": "string"}, "expected_signing_key": {"type": "string"}}}},
         {"name": "project.close", "description": "Close a project and revoke every project-scoped trust grant.", "inputSchema": {"type": "object", "required": ["project_id"], "properties": {"project_id": {"type": "string"}}}},
     ]
     for skill in sidecar.store.skills():
-        tools.append({"name": f"skill.{skill['skill_id']}", "description": f"User-designed skill {skill['name']} ({skill['version']}); execution is policy-controlled.", "inputSchema": skill.get("input_schema", {"type": "object"})})
+        description = str(skill.get("description") or f"User-designed skill {skill['name']} ({skill['version']})")
+        tools.append({"name": f"skill.{skill['skill_id']}", "description": description + "; execution is policy-controlled.", "inputSchema": skill.get("input_schema", {"type": "object"})})
     return tools
 
 
@@ -56,6 +59,10 @@ def handle_rpc(sidecar: Any, request: Dict[str, Any]) -> Dict[str, Any]:
             value = _result({"skill_id": args["skill_id"], "execution": "disabled-by-default"})
         elif name == "skill.list":
             value = _result(sidecar.store.skills(bool(args.get("enabled_only", False))))
+        elif name == "skill.catalog.list":
+            value = _result(sidecar.wechat_skill_catalog())
+        elif name == "skill.catalog.install":
+            value = _result(sidecar.install_wechat_skills(args.get("skill_ids")))
         elif name == "project.create":
             value = _result(sidecar.create_project(args["name"], args.get("project_id", ""), args.get("owner_id", "")))
         elif name == "project.list":

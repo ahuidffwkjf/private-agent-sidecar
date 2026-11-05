@@ -1,0 +1,16 @@
+{
+  "scope": "private",
+  "envelope": {
+    "protocol": "agent-message/1",
+    "message_id": "uuid",
+    "sender_id": "agent:sender",
+    "recipient_id": "agent:recipient",
+    "sequence": 1,
+    "created_at": 0,
+    "expires_at": 0,
+    "ephemeral_key": "base64url",
+    "nonce": "base64url",
+    "ciphertext": "base64url",
+    "signature": "base64url"
+  }
+}

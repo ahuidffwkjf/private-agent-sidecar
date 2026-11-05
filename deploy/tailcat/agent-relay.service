@@ -1,0 +1,24 @@
+[Unit]
+Description=Sidecar HTTPS Relay (loopback behind Tailcat)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent-relay
+Group=agent-relay
+WorkingDirectory=/opt/private-agent-sidecar
+EnvironmentFile=/etc/agent-sidecar/relay.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/opt/private-agent-sidecar/.venv/bin/python /opt/private-agent-sidecar/scripts/tailcat_deploy.py relay
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StateDirectory=agent-relay
+
+[Install]
+WantedBy=multi-user.target

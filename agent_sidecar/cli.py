@@ -37,6 +37,9 @@ def main() -> None:
     serve.add_argument("--tls-cert", type=Path, default=None)
     serve.add_argument("--tls-key", type=Path, default=None)
     serve.add_argument("--relay-token", default="")
+    serve.add_argument("--direct-endpoint", default="", help="public HTTPS endpoint advertised for direct project/private messages")
+    serve.add_argument("--project-key-backend", choices=("sqlite", "file", "keychain", "external"), default="sqlite", help="storage backend for project epoch content keys")
+    serve.add_argument("--project-key-command", nargs="+", default=None, help="external key helper command; receives JSON on stdin and returns JSON on stdout")
 
     preflight = commands.add_parser("preflight", help="validate local deployment prerequisites without printing secrets")
     preflight.add_argument("--data-dir", type=Path, default=None)
@@ -44,6 +47,10 @@ def main() -> None:
     preflight.add_argument("--relay", default=None)
     preflight.add_argument("--tls-cert", type=Path, default=None)
     preflight.add_argument("--tls-key", type=Path, default=None)
+    preflight.add_argument("--project-key-backend", choices=("sqlite", "file", "keychain", "external"), default="sqlite")
+    preflight.add_argument("--project-key-command", nargs="+", default=None)
+    preflight.add_argument("--direct-endpoint", default=None)
+    preflight.add_argument("--production", action="store_true", help="enforce HTTPS, TLS certificate pair and non-SQLite project key storage")
 
     federated = commands.add_parser("federated", help="run federated-learning flows")
     federated_sub = federated.add_subparsers(dest="federated_command", required=True)
@@ -98,7 +105,7 @@ def main() -> None:
 
     args = parser.parse_args()
     if args.command == "preflight":
-        print(json.dumps(run_preflight(args.data_dir, args.harness_config, args.relay, args.tls_cert, args.tls_key), ensure_ascii=False, indent=2))
+        print(json.dumps(run_preflight(args.data_dir, args.harness_config, args.relay, args.tls_cert, args.tls_key, args.project_key_backend, args.project_key_command, args.direct_endpoint, args.production), ensure_ascii=False, indent=2))
     elif args.command == "harness" and args.harness_command == "serve":
         serve_harness(args.host, args.port, args.seed)
     elif args.command == "harness" and args.harness_command == "describe":
@@ -108,7 +115,7 @@ def main() -> None:
     elif args.command == "relay":
         serve_relay(args.host, args.port, args.database, args.tls_cert, args.tls_key, args.access_token, args.rate_limit)
     elif args.command == "serve":
-        serve_sidecar(args.host, args.port, args.data_dir, args.relay, args.tls_cert, args.tls_key, args.relay_token)
+        serve_sidecar(args.host, args.port, args.data_dir, args.relay, args.tls_cert, args.tls_key, args.relay_token, args.direct_endpoint, args.project_key_backend, args.project_key_command)
     elif args.command == "benchmark":
         topologies = None
         if args.config:
@@ -148,7 +155,8 @@ def main() -> None:
         coordinator_id = args.coordinator_id or config.get("coordinator_id", "")
         if not coordinator_id:
             raise SystemExit("node requires --coordinator-id or a config with coordinator_id")
-        worker_harness = load_harness(args.harness_config) if args.harness_config else ToyHarness(_dataset(int(config.get("seed", args.seed)), 40, int(config.get("seed", args.seed)), False))
+        stored_harness_config = args.harness_config or ((args.data_dir / "harness-config.json") if (args.data_dir / "harness-config.json").exists() else None)
+        worker_harness = load_harness(stored_harness_config) if stored_harness_config else ToyHarness(_dataset(int(config.get("seed", args.seed)), 40, int(config.get("seed", args.seed)), False))
         worker = FederatedNode(sidecar, worker_harness, coordinator_id)
         deadline = time.time() + float(config.get("duration", args.duration))
         handled = []

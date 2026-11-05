@@ -1,6 +1,6 @@
 # Implementation Status
 
-Status checked on 2026-09-24.
+Status checked on 2026-10-14.
 
 ## Completed and verified
 
@@ -23,11 +23,35 @@ Status checked on 2026-09-24.
 | Direct local DSH integration | `DshHeadlessAdapter`, `harness doctor`, real smoke script |
 | TLS, Relay token and rate limiting | CLI flags and tests |
 | Operator documentation | `docs/OPERATOR_RUNBOOK.md` |
+| Unified Public/project/private routing | `agent_sidecar/service.py`, `docs/interfaces/messaging-routing.md` |
+| Direct Sidecar transport and fail-closed delivery | `/v1/direct/messages`, `/v1/direct/healthz`, `tests/test_direct_routing.py` |
+| Owner-signed project membership and project auto-trust | `project_manifests`, `project_members`, `project_settings`, direct membership tests |
+| Global trust candidates in project UI | `/v1/projects/<project_id>/candidates`, Dashboard selector |
+| Replicated project board MVP | signed `project-board/1` events, local SQLite replicas, direct member synchronization, Owner-offline test |
+| Directional node trust and reciprocal confirmation | signed `node-trust/1` statements, encrypted Relay notification, accept/reject/block/revoke and mutual-state tests |
+| Explicit project invitation acceptance | signed encrypted invitation/response, no membership before acceptance, reject and HTTP/UI tests |
+| Historical membership proof for board events | Owner manifest history, `/membership/history`, event-embedded manifest proof, delayed old-epoch test |
+| Per-epoch project content key rotation | encrypted key envelopes in Owner manifest, encrypted board content, removed-member confidentiality test |
+| Configurable partial Gossip fanout | cyclic neighbor selection, `gossip-settings` API, partial-neighbor test |
+| Health-aware Gossip neighbor scoring | endpoint availability, recent direct success/failure counts, advertised p95 latency and `/gossip-peers` inspection API |
+| Persistent decaying Gossip metrics | per-project/member SQLite metrics, one-hour half-life, restart persistence and monotonic-update tests |
+| Bounded Gossip attempt window | 100 retained attempts per member pair, 20-attempt scoring window and pruning test |
+| Long-running Gossip stability check | partition demo runs three post-convergence cycles and asserts stable roots plus unique event IDs |
+| Independent project-board process acceptance | `scripts/run_project_board_process_demo.py`: invitations, Owner outage/restart, Merkle recovery, removal rejection |
+| Independent partition/recovery acceptance | `scripts/run_project_board_partition_demo.py`: Relay-local commit, isolated events, fanout-1 Merkle convergence |
+| HTTPS direct transport pinning | TLS-wrapped direct Sidecar exchange with certificate fingerprint verification test |
+| External project-key storage | file backend with 0600 migration and macOS Keychain backend with fake-command tests; HSM/TPM remains |
+| Project-key preflight | backend availability checks for sqlite/file/keychain/external; missing external helper fails closed without secrets |
+| Production preflight demonstration | temporary TLS pair, external helper readiness and cleanup script |
+| Cross-machine deployment checklist | TLS, firewall/NAT, trust, outage, partition, convergence and key-isolation acceptance procedure |
+| Partial real cross-machine evidence | `runs/cross-machine-acceptance-20261014/summary.json`: local-to-remote HTTPS fingerprint-pinned encrypted direct delivery; full bidirectional/NAT acceptance remains |
+| External helper hardening | strict stdin/stdout protocol, scope validation, helper failure fail-closed tests and protocol documentation |
+| WeChat full-function Skill catalog | 361 independent manifests across 13 product modules, searchable Dashboard, individual/bulk install APIs and MCP catalog tools |
 
 ## Current verified test gate
 
 ```text
-Ran 38 tests
+The suite now contains 91 tests. The last unrestricted full run before the latest Gossip metric additions passed 81 tests; the non-network key-store/preflight/helper/gossip-metric tests pass 9/9; the new direct health-probe test requires loopback permission. A subsequent sandbox-only full attempt could not bind loopback ports for network tests; rerun the full suite with loopback permission before delivery.
 OK
 ```
 

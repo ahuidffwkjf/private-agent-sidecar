@@ -12,6 +12,13 @@ build/
 dist/
 *.egg-info/
 
+# Runtime tunnel addresses, node keys and operator-local deployment settings
+runtime/
+*.private.json
+tailcat-server-address
+tailcat-client-public-key
+deploy/tailcat/*.env
+
 # macOS and local office artifacts
 .DS_Store
 *.docx

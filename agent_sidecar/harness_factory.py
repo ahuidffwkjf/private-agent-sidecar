@@ -8,9 +8,10 @@ from .harness import CommandHarnessAdapter, DeepSeekHarnessAdapter, DshControlle
 from .federated.simulator import _dataset
 
 
-def load_harness(config_path: Path):
-    config: Dict[str, Any] = json.loads(config_path.read_text("utf-8"))
-    kind = config.get("kind", config.get("name", "toy")).lower()
+def load_harness_config(config: Dict[str, Any]):
+    if not isinstance(config, dict):
+        raise ValueError("harness config must be a JSON object")
+    kind = str(config.get("kind", config.get("name", "toy"))).lower()
     if kind == "toy":
         return ToyHarness(_dataset(int(config.get("seed", 7)), int(config.get("samples", 40)), int(config.get("node_index", 0)), bool(config.get("non_iid", False))))
     if kind in ("http", "remote"):
@@ -27,3 +28,8 @@ def load_harness(config_path: Path):
         raise ValueError("command/deepseek harness config requires train_command")
     cls = DeepSeekHarnessAdapter if kind == "deepseek" else CommandHarnessAdapter
     return cls(train_command, list(evaluate_command) if evaluate_command else None, config.get("cwd"))
+
+
+def load_harness(config_path: Path):
+    config: Dict[str, Any] = json.loads(config_path.read_text("utf-8"))
+    return load_harness_config(config)

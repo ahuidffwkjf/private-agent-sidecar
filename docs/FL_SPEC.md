@@ -18,6 +18,12 @@ A node starts with no trusted peers. `GET /v1/peers/candidates` lists Relay iden
 
 Every round request contains a `RoundConfig`, global model, model hash, nonce, minimum client count, deadline and a participant-set hash. Nodes reject a config whose participant list does not match the commitment. Secure rounds therefore cannot silently change the mask participant set. Encrypted Sidecar envelopes provide sender authentication, TTL, replay-resistant message identifiers and confidentiality from the Relay.
 
+## Communication routing
+
+The Dashboard uses a unified target selector. Public broadcasts use Relay. Formal project discussion is appended to the replicated project board and synchronized over direct Sidecar HTTPS; private chat also uses direct HTTPS. Neither path falls back to Relay. The legacy project fan-out shape under `/v1/messages/send` remains available for compatibility, while the Dashboard writes project content through `/v1/projects/<project_id>/board`.
+
+A project Owner signs membership manifests. A participant that accepts the project enables project-member auto-trust by default after verifying the manifest. This grants project-scoped trust only and never changes the global trusted-peer allowlist. Globally trusted peers are visible as candidates in every project but are not automatically granted project trust.
+
 ## Current limits
 
 The core model representation is a named JSON float-vector map. This keeps CI independent of NumPy and PyTorch. `agent_sidecar.federated.artifacts` provides fixed-size chunking with per-chunk and whole-artifact SHA-256 verification for larger payloads. Optional update clipping and Gaussian noise are available in the deterministic simulator for privacy/utility experiments. They are not a formal differential-privacy guarantee without a privacy accountant. Secure FedAvg is implemented in the simulator and Sidecar runtime with pairwise masks and bounded dropout recovery. Production deployments still require authenticated ephemeral key rotation, stronger recovery thresholds and TLS around Relay HTTP.
