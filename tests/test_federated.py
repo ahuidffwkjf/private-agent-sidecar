@@ -604,11 +604,29 @@ class TrustUITests(unittest.TestCase):
                 with urlopen(f"http://127.0.0.1:{sidecar_server.server_port}/v1/peers/candidates") as response:
                     candidates = json.loads(response.read().decode("utf-8"))["peers"]
                 self.assertEqual(candidates[0]["trust_state"], "pending")
-                request = Request(f"http://127.0.0.1:{sidecar_server.server_port}/v1/peers/trust", data=json.dumps({"trusted_agent_ids": [bob.identity.agent_id]}).encode(), headers={"Content-Type": "application/json"}, method="PUT")
+                request = Request(f"http://127.0.0.1:{sidecar_server.server_port}/v1/peers/trust", data=json.dumps({"trusted_agent_ids": [bob.identity.agent_id], "expected_signing_keys": {bob.identity.agent_id: bob.identity.public().signing_key}}).encode(), headers={"Content-Type": "application/json"}, method="PUT")
                 with urlopen(request) as response:
                     body = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(body["trusted_agent_ids"], [bob.identity.agent_id])
                 self.assertIn(bob.identity.agent_id, alice.store.trusted_ids())
+                with urlopen(f"http://127.0.0.1:{sidecar_server.server_port}/") as response:
+                    dashboard = response.read().decode("utf-8")
+                self.assertIn("节点级长期信任", dashboard)
+                self.assertIn("所有 active 项目中可用", dashboard)
+                self.assertIn("/v1/peers/trust-requests", dashboard)
+                self.assertIn("refresh_global_trust", dashboard)
+                self.assertIn("/v1/peers/trust-notifications", dashboard)
+                self.assertIn("expected_signing_key", dashboard)
+                self.assertIn("节点级长期信任", dashboard)
+                self.assertIn("/v1/peers/trust", dashboard)
+                self.assertIn("private_message_peer", dashboard)
+                self.assertIn("send_private_message", dashboard)
+                self.assertIn("target_kind", dashboard)
+                self.assertIn("project_auto_trust", dashboard)
+                self.assertIn("bindDashboard", dashboard)
+                self.assertIn("dataset.dashboardReady", dashboard)
+                self.assertIn("JSON.stringify(x.content,null,2)", dashboard)
+                self.assertIn("/v1/messages/send", dashboard)
                 with urlopen(f"http://127.0.0.1:{sidecar_server.server_port}/ui/trust") as response:
                     self.assertIn("信任管理".encode("utf-8"), response.read())
             finally:

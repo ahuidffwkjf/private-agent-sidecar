@@ -1,0 +1,27 @@
+[Unit]
+Description=Tailcat v0.7.0 loopback forward for Sidecar
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=agent-sidecar
+Group=agent-sidecar
+WorkingDirectory=/opt/private-agent-sidecar
+Environment=HOME=/var/lib/agent-sidecar
+Environment=XDG_CONFIG_HOME=/var/lib/agent-sidecar/tailcat-config
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/agent-sidecar/tailcat-client.env
+ExecStart=/opt/private-agent-sidecar/.venv/bin/python /opt/private-agent-sidecar/scripts/tailcat_deploy.py forward
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StateDirectory=agent-sidecar
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

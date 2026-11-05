@@ -16,6 +16,8 @@ BOOTSTRAP_MANIFEST: Dict[str, Any] = {
             "trace.list",
             "skill.install",
             "skill.list",
+            "skill.catalog.list",
+            "skill.catalog.install",
             "mcp.initialize",
             "mcp.tools.list",
             "mcp.tools.call",
@@ -28,7 +30,7 @@ BOOTSTRAP_MANIFEST: Dict[str, Any] = {
     "trace": {
         "schema": "sidecar-trace/1",
         "storage": "sqlite",
-        "events": ["bootstrap.installed", "broadcast.published", "broadcast.received", "skill.installed", "skill.enabled"],
+        "events": ["bootstrap.installed", "broadcast.published", "broadcast.received", "skill.installed", "skill.enabled", "wechat.skill_catalog.installed"],
     },
     "skills": {
         "manifest_schema": "sidecar-skill/1",

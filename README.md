@@ -17,6 +17,26 @@
 
 ## 安装
 
+### 让 Agent 完成安装与接入
+
+完整入口：[Agent 安装手册](docs/AGENT_INSTALL.md)；可加载的接入 Skill：
+[`sidecar-onboarding`](skills/sidecar-onboarding/SKILL.md)。安装程序会准备独立环境、
+生成设备公钥申请，并在管理员批准后启动 Tailcat 和 Sidecar。另附此前 361 个
+类微信操作 Skill 的 `SKILL.md` 导出，合计 362 项；这些操作目录不是已经实现的
+361 个执行器，也不授权 Agent 自动操作真实微信。
+
+```bash
+python3 scripts/sidecar_setup.py doctor
+python3 scripts/sidecar_setup.py install
+```
+
+首次接入仍需可信管理员授权；无需手工复制私钥。已有源码和节点数据不会被删除。
+发行包由 `scripts/package_sidecar_installer.py --output <新文件.zip>` 生成。
+
+Tailcat v0.7.0 隧道接入与恢复的部署脚本见
+[Tailcat 部署说明](docs/TAILCAT_DEPLOYMENT.md)。当前版本只映射 Relay HTTPS
+端口，不沿用旧 0.3/0.4 产品的 WebSocket 参数；隧道不能替代 TLS 和节点信任。
+
 需要 Python 3.9 或更高版本：
 
 ```bash
@@ -140,6 +160,22 @@ agent-sidecar serve \
 - 附件的分块加密对象存储；
 - 联邦中继发现与跨域投递。
 
+## 统一通信频道与直连协作
+
+Dashboard 的“通信对象”选择器提供三条明确路径：
+
+```text
+Public        -> Relay 广播
+项目留言板    -> 成员本地签名事件副本 + Sidecar 直连 HTTPS 同步
+私人私聊      -> 对单个节点的直连 HTTPS
+```
+
+项目和私人消息不会自动回退 Relay。节点需要使用 `--direct-endpoint` 发布可达地址；生产部署必须为 Sidecar 启用 TLS，并配置证书指纹 pinning。NAT、端口映射和防火墙由部署方负责，当前版本不提供 STUN/TURN 或自动打洞。
+
+项目 Owner 选择候选节点时先发送签名加密邀请，不会直接修改成员清单。只有被邀请节点主动接受并返回签名响应后，Owner 才发布包含新成员的签名清单。加入后默认信任当前以及以后由 Owner 签名加入的项目成员，但不会升级为全局长期信任。项目留言先写入本地副本，再直接同步给其他成员；发起者离线不会阻止其余成员继续读取和发布。
+
+直连接口和 JSON 示例见 [`docs/interfaces/`](docs/interfaces/README.md)。
+
 ## 联邦学习
 
 当前版本已经提供轻量联邦学习核心、真实加密 Sidecar 消息链路、显式信任界面、跨 Harness 契约和可复现 Benchmark。
@@ -228,6 +264,28 @@ agent-sidecar harness describe \
 ```
 
 真实 DeepSeek 训练命令通过 `configs/harness/deepseek.example.json` 映射。Node 可以通过 `--harness-config` 载入 Toy、HTTP、Command 或 DeepSeek adapter 配置。
+
+运行 Sidecar Dashboard 后，也可以在“新节点 Harness 配置”面板中直接粘贴 JSON 配置、检查能力并保存。配置写入该节点数据目录下的 `harness-config.json`，使用 `agent-sidecar federated node` 启动时会自动读取；显式传入 `--harness-config` 时仍以命令行参数为准。配置接口为：
+
+```text
+GET  /v1/harness/config
+POST /v1/harness/config/test
+POST /v1/harness/config
+```
+
+Dashboard 只回显脱敏后的 `registry_token`、API token 等字段；新节点的 Harness descriptor 会随 `node.capabilities` 广播，Relay 不会看到 Harness 凭据。
+
+### 微信全功能 Skill 目录
+
+Dashboard 提供截至 2026-10-16 的微信全功能 Skill 目录。账号、聊天、联系人、群聊、朋友圈、发现、视频号、公众号、小程序、微信支付、个人工具、隐私安全和桌面端能力被拆分为独立 manifest；可搜索、按模块筛选、逐个安装或批量安装。安装只写入本地 Skill store，所有目录 Skill 均保持 `disabled-by-default`，不会自动操作真实微信账号。
+
+```text
+GET  /v1/skills/catalog
+POST /v1/skills/catalog/install   {"skill_ids":["wechat.group.create"]}
+POST /v1/skills/catalog/install   {}  # 安装完整目录
+```
+
+对应 MCP 管理工具为 `skill.catalog.list` 和 `skill.catalog.install`。每个 manifest 都包含入口、动作、角色、前置条件、可见性、状态、限制、平台和核验状态；`wechat.group.mute_capability_check` 明确记录个人微信群原生禁言边界，避免与企业微信、QQ 或腾讯云 IM SDK 混淆。
 
 运维启动和故障处理见：`docs/OPERATOR_RUNBOOK.md`。
 实现状态和当前外部前置条件见：`docs/IMPLEMENTATION_STATUS.md`。

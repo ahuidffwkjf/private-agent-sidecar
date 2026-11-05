@@ -14,6 +14,8 @@ A Harness adapter implements `describe`, `load_global`, `train`, `evaluate`, `ex
 
 `HttpHarnessAdapter` is the client and `agent-sidecar harness serve` is the reference server. `agent-sidecar harness describe --config <path>` loads a local adapter configuration and prints its capability descriptor.
 
+The Sidecar Dashboard provides local Harness configuration for a new node. `GET /v1/harness/config` returns a redacted view, `POST /v1/harness/config/test` validates a JSON config and probes its descriptor without saving, and `POST /v1/harness/config` validates then saves it to the node data directory as `harness-config.json`. Secret fields are never returned by the API. A federated Node automatically uses this saved file when `--harness-config` is not supplied; an explicit CLI path takes precedence.
+
 ## Command adapter
 
 `CommandHarnessAdapter` renders `{input}` and `{output}` placeholders into a command. The command reads a JSON request and must create a JSON response. This supports existing harnesses without importing them into the Sidecar process.
