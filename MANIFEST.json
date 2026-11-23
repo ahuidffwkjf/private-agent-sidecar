@@ -2,9 +2,9 @@
   "schema": "sidecar-toy-native-source/1",
   "release": "desktop-v0.3.2",
   "app_version": "0.3.2",
-  "source_sha256": "82e11cba02508a6fe5a69cf547eaedc48175a55a1383a4491ec201b17272da7a",
+  "source_sha256": "d2c36a65f5b81e5534810f7e5b3dfd65e2fe84b4846f2ba41a8ddf45a72e3803",
   "files": {
-    ".github/workflows/desktop.yml": "f08ce1a37fd0b150ad4098bc6ecc8562f879a39fa38ac277424e780c9d3787b5",
+    ".github/workflows/desktop.yml": "42d2811dd13580d6f7ee6660e1f94aae4841439d7d0dab836db34ac6fd09ad15",
     ".gitignore": "79538314cbcb052054eb8451159f8a6ebbba4a1a62a8a02b777fd0dba289e62a",
     "AGENTS.md": "4518a8025f0bc621007a3d2463c2e959edf580003caa20af2023cfd50645466f",
     "CONTINUOUS_GOAL.md": "7bb54d3e97176fcd8427ef563434de0f352502f1f00def5ddfc1351a352d6962",
