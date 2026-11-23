@@ -2,9 +2,8 @@
 import json
 import secrets
 from pathlib import Path
-from http.server import ThreadingHTTPServer
 
-from .desktop import DesktopRuntime, desktop_handler
+from .desktop import DesktopRuntime, LoopbackHTTPServer, desktop_handler
 from .relay import make_handler as relay_handler
 from .research import ResearchStore, make_research_handler
 from .service import Sidecar, make_handler as sidecar_handler
@@ -32,7 +31,7 @@ class ToyDesktopRuntime(DesktopRuntime):
             relay_store = RelayStore(self.root / "relay.db")
             self.stores.append(relay_store)
             relay_token = secrets.token_hex(32)
-            relay = ThreadingHTTPServer(("127.0.0.1", 0), relay_handler(relay_store, relay_token))
+            relay = LoopbackHTTPServer(("127.0.0.1", 0), relay_handler(relay_store, relay_token))
             self.servers.append(relay)
             self._start_server(relay)
             admin_file = self.root / "research-admin.private"
@@ -40,7 +39,7 @@ class ToyDesktopRuntime(DesktopRuntime):
                 admin_file.write_text(secrets.token_urlsafe(48), encoding="utf-8")
             admin_file.chmod(0o600)
             self.research_store = ResearchStore(self.root / "research.db", config["experiment_id"])
-            collector = ThreadingHTTPServer(("127.0.0.1", 0), make_research_handler(self.research_store, admin_file.read_text("utf-8").strip()))
+            collector = LoopbackHTTPServer(("127.0.0.1", 0), make_research_handler(self.research_store, admin_file.read_text("utf-8").strip()))
             self.servers.append(collector)
             self._start_server(collector)
             for index, name in enumerate(("Alice", "Bob", "Carol", "Dave")):
@@ -52,7 +51,7 @@ class ToyDesktopRuntime(DesktopRuntime):
                 config_file = node_root / "toy-config.json"
                 config_file.write_text(json.dumps(node_config), encoding="utf-8")
                 config_file.chmod(0o600)
-                server = ThreadingHTTPServer(("127.0.0.1", 0), sidecar_handler(None))
+                server = LoopbackHTTPServer(("127.0.0.1", 0), sidecar_handler(None))
                 self.servers.append(server)
                 url = f"http://127.0.0.1:{server.server_port}"
                 node = Sidecar(node_root, f"http://127.0.0.1:{relay.server_port}", relay_token, url, hardware_profile="basic")

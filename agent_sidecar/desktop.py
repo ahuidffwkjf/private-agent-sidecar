@@ -7,6 +7,7 @@ import json
 import os
 import secrets
 import signal
+import socketserver
 import sys
 import threading
 from http.cookies import CookieError, SimpleCookie
@@ -19,6 +20,16 @@ from .service import Sidecar, make_handler as sidecar_handler
 from .store import RelayStore
 
 COOKIE = 'sidecar_desktop_session'
+
+
+class LoopbackHTTPServer(ThreadingHTTPServer):
+    def server_bind(self):
+        if self.server_address[0] != '127.0.0.1':
+            raise ValueError('desktop services must bind IPv4 loopback')
+        # HTTPServer resolves a hostname here, which can block on broken DNS.
+        # These owned local services use only their numeric loopback address.
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
 
 
 def desktop_handler(sidecar, token, origin):
@@ -100,11 +111,11 @@ class DesktopRuntime:
             relay_store = RelayStore(self.root / 'relay.db')
             self.stores.append(relay_store)
             relay_token = secrets.token_hex(32)
-            relay = ThreadingHTTPServer(('127.0.0.1', 0), relay_handler(relay_store, relay_token))
+            relay = LoopbackHTTPServer(('127.0.0.1', 0), relay_handler(relay_store, relay_token))
             self.servers.append(relay)
             self._start_server(relay)
             # Reserve the UI port before publishing this node's direct endpoint.
-            server = ThreadingHTTPServer(('127.0.0.1', 0), sidecar_handler(None))
+            server = LoopbackHTTPServer(('127.0.0.1', 0), sidecar_handler(None))
             self.servers.append(server)
             self.url = f'http://127.0.0.1:{server.server_port}'
             self.sidecar = Sidecar(self.root / 'node', f'http://127.0.0.1:{relay.server_port}', relay_token, self.url, hardware_profile='basic')

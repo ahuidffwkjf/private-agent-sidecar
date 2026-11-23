@@ -11,7 +11,7 @@
   "scripts": {
     "setup": "node scripts/python.cjs setup",
     "start": "node scripts/python.cjs setup && electron .",
-    "test": "node --test tests/policy.test.cjs",
+    "test": "node --test tests/policy.test.cjs tests/settings.test.cjs",
     "smoke": "node scripts/toy-smoke.cjs",
     "backend:build": "node scripts/python.cjs build",
     "runtime:install": "node node_modules/electron/install.js",

@@ -4,7 +4,7 @@ const {randomBytes}=require('node:crypto');
 const fs=require('node:fs');
 const path=require('node:path');
 const readline=require('node:readline');
-const {validateConnection,trustedNavigation,backendCommand,validateReady}=require('./policy.cjs');
+const {validateConnection,trustedNavigation,trustedLocalFileNavigation,backendCommand,validateReady}=require('./policy.cjs');
 
 app.setName('Sidecar Toy');
 app.setPath('userData',path.join(app.getPath('appData'),'Sidecar Toy'));
@@ -28,12 +28,12 @@ function connectionSettings(){
   settingsWindow=new BrowserWindow({width:560,height:460,minWidth:480,minHeight:420,parent:window,
     title:'连接设置',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   settingsWindow.webContents.setWindowOpenHandler(()=>({action:'deny'}));
-  settingsWindow.webContents.on('will-navigate',(event,url)=>{if(url!==settingsURL)event.preventDefault();});
+  settingsWindow.webContents.on('will-navigate',(event,url)=>{if(!trustedLocalFileNavigation(url,settingsURL))event.preventDefault();});
   settingsWindow.loadFile(path.join(__dirname,'settings.html'));
   settingsWindow.on('closed',()=>{settingsWindow=null;});
 }
 function settingsSender(event){
-  if(!settingsWindow||event.sender!==settingsWindow.webContents||event.senderFrame!==settingsWindow.webContents.mainFrame||event.senderFrame.url!==settingsURL)throw new Error('Settings IPC is restricted to the settings window');
+  if(!settingsWindow||event.sender!==settingsWindow.webContents||event.senderFrame!==settingsWindow.webContents.mainFrame||!trustedLocalFileNavigation(event.senderFrame.url,settingsURL))throw new Error('Settings IPC is restricted to the settings window');
 }
 function createMenu(){
   const mac=process.platform==='darwin';

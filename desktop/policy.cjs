@@ -1,4 +1,5 @@
 const path=require('node:path');
+const {fileURLToPath}=require('node:url');
 function validateConnection(value){
   if(value?.mode==='local')return {mode:'local'};
   if(value?.mode!=='remote'||typeof value.url!=='string')throw new Error('请选择本机工作区或现有 Sidecar 服务');
@@ -11,6 +12,14 @@ function validateConnection(value){
 }
 function trustedNavigation(candidate,base){
   try{const a=new URL(candidate),b=new URL(base);return a.origin===b.origin&&['http:','https:'].includes(a.protocol)&&!a.username&&!a.password;}catch{return false;}
+}
+function trustedLocalFileNavigation(candidate,expected){
+  try{
+    const actual=new URL(candidate),target=new URL(expected);
+    if(actual.protocol!=='file:'||target.protocol!=='file:'||actual.host||target.host||actual.search||actual.hash)return false;
+    // Node and Chromium encode unreserved characters such as '~' differently.
+    return fileURLToPath(actual)===fileURLToPath(target);
+  }catch{return false;}
 }
 function backendCommand({packaged,resources,root,platform=process.platform}){
   if(packaged)return {file:path.join(resources,'backend',platform==='win32'?'SidecarBackend.exe':'SidecarBackend'),args:[]};
@@ -35,4 +44,4 @@ function validateReady(value){
   if(parsed.length&&(!origins.has(origin)||parsed.length!==4))throw new Error('演示用户列表不完整');
   return {origin,users:parsed};
 }
-module.exports={validateConnection,trustedNavigation,backendCommand,validateReady};
+module.exports={validateConnection,trustedNavigation,trustedLocalFileNavigation,backendCommand,validateReady};

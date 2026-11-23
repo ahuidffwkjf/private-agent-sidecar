@@ -38,7 +38,8 @@ class ToyDesktopTests(unittest.TestCase):
             root = Path(temporary)
             token = secrets.token_hex(32)
             runtime = ToyDesktopRuntime(root, token)
-            runtime.start()
+            with patch('socket.getfqdn', side_effect=AssertionError('toy must not query reverse DNS')):
+                runtime.start()
             def call(index, path, data=None, authenticated=True):
                 headers = {'Cookie': COOKIE + '=' + token} if authenticated else {}
                 if data is not None:

@@ -6,10 +6,11 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from agent_sidecar.desktop import COOKIE, DesktopRuntime
+from agent_sidecar.desktop import COOKIE, DesktopRuntime, LoopbackHTTPServer
 
 
 class DesktopTests(unittest.TestCase):
@@ -17,7 +18,8 @@ class DesktopTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.token = secrets.token_hex(32)
         self.runtime = DesktopRuntime(Path(self.temp.name), self.token)
-        self.url = self.runtime.start()
+        with patch('socket.getfqdn', side_effect=AssertionError('desktop must not query reverse DNS')):
+            self.url = self.runtime.start()
 
     def tearDown(self):
         self.runtime.close()
@@ -81,6 +83,10 @@ class DesktopTests(unittest.TestCase):
 
 
 class DesktopProcessTests(unittest.TestCase):
+    def test_desktop_listener_rejects_non_loopback_bind(self):
+        with self.assertRaisesRegex(ValueError, 'loopback'):
+            LoopbackHTTPServer(('0.0.0.0', 0), None)
+
     def test_stdin_eof_stops_backend_and_readiness_never_contains_token(self):
         with tempfile.TemporaryDirectory() as temporary:
             token = secrets.token_hex(32)
