@@ -6,6 +6,7 @@ const assert=require('node:assert/strict');
 const release=process.env.SIDECAR_DESKTOP_RELEASE?path.resolve(process.env.SIDECAR_DESKTOP_RELEASE):path.resolve(__dirname,'../release');
 const metadata=require('../package.json');
 function executable(){
+  if(process.env.SIDECAR_DESKTOP_EXECUTABLE)return path.resolve(process.env.SIDECAR_DESKTOP_EXECUTABLE);
   const folder=process.platform==='darwin'?(process.arch==='arm64'?'mac-arm64':'mac'):process.platform==='win32'?'win-unpacked':'linux-unpacked';
   return path.join(release,folder,...(process.platform==='darwin'?[metadata.productName+'.app','Contents','MacOS',metadata.productName]:process.platform==='win32'?[metadata.productName+'.exe']:[metadata.name]));
 }

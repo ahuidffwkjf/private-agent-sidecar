@@ -1,37 +1,30 @@
-# Sidecar Toy Desktop 0.3.1
+# Sidecar Toy Desktop 0.3.2：四平台本地运行版
 
-**可以下载后直接运行的 macOS Apple Silicon 应用，内置 Python 和全部运行依赖。**
+下载后安装/解压即可运行，内置 Python 后端，无需安装 Python、Node.js、Tailcat 或 DSH。
 
-## 下载哪个文件
+| 系统 | 下载 |
+| --- | --- |
+| Windows x64 | `Sidecar-Toy-0.3.2-win-x64.exe` 或 `.zip` |
+| Linux x64 | `Sidecar-Toy-0.3.2-linux-x64.deb` 或 `.AppImage` |
+| Mac Apple Silicon | `Sidecar-Toy-0.3.2-mac-arm64.dmg` 或 `.zip` |
+| Mac Intel | `Sidecar-Toy-0.3.2-mac-x64.dmg` 或 `.zip` |
 
-- 推荐：`Sidecar-Toy-0.3.1-mac-arm64.dmg`，打开并把 Sidecar Toy 拖入“应用程序”。
-- 或下载 `Sidecar-Toy-0.3.1-mac-arm64.zip`，解压得到同一个 `.app`。
-- 不需要安装 Python、Node.js、pip、Tailcat 或 DSH，也不需要连接香橙派。
-- 仅适用于 M 系列 Mac；包声明 macOS 13+，实际测试平台为 Apple Silicon macOS 26.5。
+完整操作说明见附件 `Sidecar-Toy-Download-Guide.zh-CN.md`。启动后在菜单“演示用户”切换
+Alice、Bob、Carol、Dave，分别同意实验采集后体验任务发布、申请、审批、项目群和分层子任务。
 
-## 开始使用
+## 验收规则
 
-双击打开应用，阅读 Alice 的实验采集告知后发布任务。菜单“演示用户”可以切换
-Alice、Bob、Carol、Dave（Command+1 至 Command+4）。切到 Bob 申请，再切回 Alice 批准。
-四个身份独立，不能代真实参与者同意采集。完整说明见附件 `Sidecar-Toy-App-Guide.zh-CN.md`。
+本 Release 由四个平台原生 CI 全部通过后才发布，附各平台验证 JSON 和安装包 SHA-256。
+检查涵盖冻结后端、空 PATH 运行、会话认证、用户切换、任务/群聊、重启后新消息和退出清理；
+另外从 Mac ZIP/DMG、Windows ZIP/NSIS、Linux AppImage 提取文件/DEB 安装目录运行实际应用。
+Linux 使用 Xvfb 图形环境，AppImage 的 FUSE 挂载行为不作为所有发行版都能运行的保证。
 
-本地服务随应用启动；关闭最后窗口或退出应用后停止。重开保留身份、任务和消息。
-数据与源码预览和旧 Sidecar 版本隔离，位于 `~/Library/Application Support/Sidecar Toy/`。
+## 重要边界
 
-## 明确边界
-
-- **本包为 ad-hoc 签名预览，没有 Apple Developer ID 签名/公证。**系统可能提示或阻止首次打开。
-  不要求关闭 Gatekeeper、不移除系统隔离属性；无提示公开分发仍需开发者签名和公证。
-- Toy 模式在用户确认后把本应用私聊、群聊和相关交互收集到本地研究数据库。
-  只输入合成测试内容，不输入秘密。默认本地模式不向外部服务器上传。
-- 摘要标注“演示摘要 · 非模型生成”，不是实际 DSH 输出，不产生模型费用。
-- 不含发布者的账号、数据、密钥、token、模型权重或联邦学习训练依赖。
-- 本次不发布未经验证的 Intel Mac、Windows 或 Linux 原生安装包。
-
-## 修复与验收
-
-- 内置四用户后台、用户菜单、自动进入任务大厅、会话认证和退出清理。
-- 重启后由项目负责人签名更新临时端口，验证新群消息仍可投递，不新增成员或全局信任。
-- 本地回环流量不经过系统代理，避免实验内容误走外部代理。
-- 冻结后端在空 PATH、非源码目录下启动成功；实际 `.app` 完成任务发布、入群、群聊、重启和清理验收。
-- 具体测试、校验和及签名状态见附件验证报告与 `SHA256SUMS`。
+- Windows 包没有商业发布者签名，Mac 为 ad-hoc 签名、未公证，系统可能提示或阻止首次启动。
+  不要求用户关闭系统安全保护。正式无警告分发仍需配置代码签名与公证。
+- 本次支持上述桌面架构，不包括 Windows/Linux ARM、Android、iOS。
+- Toy 确认后采集本应用私聊/群聊及相关可见交互到本地研究库，只输入合成数据。
+- 摘要为明确标记的演示抽取器，不是真实模型输出，不产生模型调用费用。
+- 不含作者的账户、节点私钥、聊天数据库、研究数据库、API/Relay 凭证或实际部署地址。
+- 单机演示默认不需要外网，实际多机组网仍需安全连接配置与单独验收。

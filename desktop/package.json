@@ -1,7 +1,7 @@
 {
   "name": "sidecar-toy-desktop",
   "productName": "Sidecar Toy",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Sidecar desktop chat workspace",
   "author": "Private Agent Sidecar contributors",
   "private": true,
