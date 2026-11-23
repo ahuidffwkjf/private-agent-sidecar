@@ -1,6 +1,6 @@
 # Private Agent Sidecar Engineering Rules
 
-This repository is being developed as a federated-learning platform over an encrypted Agent Sidecar. Before changing code, read `CONTINUOUS_GOAL.md`, `docs/FL_SPEC.md`, `docs/BENCHMARK_SPEC.md` and `docs/HARNESS_SPEC.md` as applicable.
+This repository develops the encrypted communication and collaboration Sidecar. Federated learning is parked in the optional `packages/federated` distribution and is not a default development goal. Before changing code, read `CONTINUOUS_GOAL.md` and the relevant specifications. For explicit FL work, read `packages/federated/README.md` and its FL, Benchmark and Harness specifications.
 
 ## Required workflow
 
@@ -11,7 +11,7 @@ This repository is being developed as a federated-learning platform over an encr
    ```
 
    If no project virtual environment exists, use the configured workspace Python runtime.
-2. For FL changes, run both the deterministic demo and, when the transport/runtime is affected, the independent-process demo:
+2. For FL changes, install the optional package, run `.venv/bin/python -m unittest discover -s packages/federated/tests -v`, and run both the deterministic demo and, when the transport/runtime is affected, the independent-process demo:
 
    ```bash
    python scripts/run_federated_demo.py
@@ -23,6 +23,14 @@ This repository is being developed as a federated-learning platform over an encr
 
 ## Security invariants
 
+- The active toy workflow has no reward or decision-model prerequisites; preserve legacy bounty data separately.
+- Toy private/group content collection requires explicit experiment consent; standard mode must not upload it.
+- Research ingestion is node-authenticated; query/export/deletion require separate administrator authorization.
+- Never present demo summaries as real Harness/model outputs, or execute task text while summarizing it.
+- Business relay contracts must have explicit bilateral consent; hierarchy never grants transitive node trust.
+- Reserve pending offers against the parent's reward budget; do not reuse accepted obligations after revocation.
+- Decision models only recommend actions; they cannot bypass protocol, trust, budget or timeout checks.
+- Public bounty rewards are promises only; never claim escrow, settlement or actual payment without a payment implementation.
 - New peers are `pending` and are never trusted transitively.
 - Relay never needs plaintext model updates.
 - Secure FedAvg requires explicit participant trust and a committed participant set.

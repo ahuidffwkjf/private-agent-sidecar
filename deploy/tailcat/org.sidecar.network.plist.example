@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>org.sidecar.network</string>
+<key>ProgramArguments</key><array>
+<string>/ABSOLUTE/REPO/.venv/bin/python</string>
+<string>/ABSOLUTE/REPO/scripts/run_network_node.py</string>
+<string>--data-dir</string><string>/ABSOLUTE/PRIVATE/node</string>
+<string>--network-config</string><string>/ABSOLUTE/PRIVATE/network.json</string>
+<string>--relay</string><string>https://127.0.0.1:18787</string>
+<string>--relay-token-file</string><string>/ABSOLUTE/PRIVATE/relay-token</string>
+</array>
+<key>EnvironmentVariables</key><dict><key>SSL_CERT_FILE</key><string>/ABSOLUTE/PRIVATE/relay-ca.pem</string><key>NO_PROXY</key><string>127.0.0.1,localhost</string></dict>
+<key>RunAtLoad</key><true/><key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+<key>ThrottleInterval</key><integer>10</integer><key>Umask</key><integer>63</integer>
+</dict></plist>

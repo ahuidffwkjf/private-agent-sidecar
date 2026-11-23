@@ -11,7 +11,7 @@ from agent_sidecar.client import RelayClient
 from agent_sidecar.protocol import decrypt_message, encrypt_message
 from agent_sidecar.relay import make_handler
 from agent_sidecar.service import Sidecar
-from agent_sidecar.store import RelayStore
+from agent_sidecar.store import LocalStore, RelayStore
 from agent_sidecar.http_utils import enable_tls
 
 
@@ -70,6 +70,37 @@ class RelayRateLimitTests(unittest.TestCase):
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
 
 
+class ProjectCreationTests(unittest.TestCase):
+    def test_retries_are_idempotent_and_do_not_hit_unique_constraint(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            store = LocalStore(Path(temporary) / "state.db")
+            first = store.create_project("project-retry", "  项目  ", "agent:owner")
+            second = store.create_project("project-retry", "项目", "agent:owner")
+
+            self.assertEqual(second, first)
+            self.assertEqual(len(store.projects()), 1)
+
+    def test_duplicate_project_id_with_different_metadata_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            store = LocalStore(Path(temporary) / "state.db")
+            store.create_project("project-fixed", "项目", "agent:owner")
+
+            with self.assertRaisesRegex(ValueError, "different name or owner"):
+                store.create_project("project-fixed", "另一项目", "agent:owner")
+            with self.assertRaisesRegex(ValueError, "different name or owner"):
+                store.create_project("project-fixed", "项目", "agent:other")
+
+    def test_closed_project_id_cannot_be_reopened_by_retry(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            store = LocalStore(Path(temporary) / "state.db")
+            store.create_project("project-closed", "项目", "agent:owner")
+            store.close_project("project-closed")
+
+            with self.assertRaisesRegex(ValueError, "already exists and is closed"):
+                store.create_project("project-closed", "项目", "agent:owner")
+
+
+
 class ProjectScopedTrustTests(unittest.TestCase):
     def test_project_trust_expires_when_project_closes(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -98,6 +129,31 @@ class ProjectScopedTrustTests(unittest.TestCase):
                     alice.send(bob.identity.agent_id, "task.request", {"text": "after-close"}, project_id=project_id)
                 self.assertEqual(alice.store.project(project_id)["status"], "closed")
                 self.assertIsNotNone(alice.store.project(project_id)["members"][0]["revoked_at"])
+            finally:
+                server.shutdown(); server.server_close(); thread.join(timeout=2)
+
+    def test_global_trust_is_available_in_every_active_project(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            relay_store = RelayStore(root / "relay.db")
+            server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(relay_store))
+            thread = threading.Thread(target=server.serve_forever, daemon=True); thread.start()
+            try:
+                relay_url = f"http://127.0.0.1:{server.server_port}"
+                alice = Sidecar(root / "alice", relay_url); bob = Sidecar(root / "bob", relay_url)
+                alice.trust(bob.identity.agent_id, bob.identity.public().signing_key)
+                bob.trust(alice.identity.agent_id, alice.identity.public().signing_key)
+                for index in (1, 2):
+                    project_id = f"project-global-{index}"
+                    alice.create_project("全局信任项目", project_id)
+                    bob.create_project("全局信任项目", project_id, owner_id=alice.identity.agent_id)
+                    self.assertIsNotNone(alice.trusted_peer(bob.identity.agent_id, project_id))
+                    result = alice.trust_for_project(project_id, bob.identity.agent_id, bob.identity.public().signing_key)
+                    self.assertEqual(result["trust_scope"], "global")
+                    self.assertEqual(result["status"], "already_trusted")
+                    message_id = alice.send(bob.identity.agent_id, "project.message", {"text": project_id}, project_id=project_id)
+                    received = bob.receive()
+                    self.assertIn(message_id, [item["message_id"] for item in received])
             finally:
                 server.shutdown(); server.server_close(); thread.join(timeout=2)
 

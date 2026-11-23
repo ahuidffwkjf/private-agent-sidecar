@@ -1,0 +1,9 @@
+{
+  "mode": "toy",
+  "experiment_id": "replace-with-shared-study-id",
+  "research_url": "https://research.example.invalid",
+  "summary": {
+    "kind": "http",
+    "url": "http://127.0.0.1:8910"
+  }
+}

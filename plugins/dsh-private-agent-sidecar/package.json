@@ -1,0 +1,23 @@
+{
+  "name": "@private-agent-sidecar/dsh-plugin",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness tools for the local Private Agent Sidecar",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    }
+  },
+  "files": ["lib", "README.md", "cordis.patch.yml", "package.json"],
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "4.0.2",
+    "@deepseek-ai/dsh-tools": "^0.1.5-rc.3"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "3.18.2"
+  }
+}

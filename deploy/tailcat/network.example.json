@@ -1,0 +1,10 @@
+{
+  "tailcat_bin": "/usr/local/bin/tailcat",
+  "key_file": "/var/lib/agent-sidecar/network/tailcat.private.json",
+  "client_keys": {},
+  "address_file": "/var/lib/agent-sidecar/network/address",
+  "peer_port": 8803,
+  "tls_cert": "/var/lib/agent-sidecar/network/peer-cert.pem",
+  "tls_key": "/var/lib/agent-sidecar/network/peer-key.pem",
+  "max_connections": 8
+}

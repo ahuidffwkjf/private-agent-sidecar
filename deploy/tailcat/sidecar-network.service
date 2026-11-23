@@ -1,0 +1,24 @@
+[Unit]
+Description=Persistent Sidecar Tailcat network node
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=6
+
+[Service]
+Type=simple
+User=agent-sidecar
+WorkingDirectory=/opt/private-agent-sidecar
+ExecStart=/opt/private-agent-sidecar/.venv/bin/python scripts/run_network_node.py --data-dir /var/lib/agent-sidecar/node --network-config /var/lib/agent-sidecar/network/config.json --port 8802 --relay https://127.0.0.1:18787 --relay-token-file /var/lib/agent-sidecar/network/relay-token
+Environment=SSL_CERT_FILE=/var/lib/agent-sidecar/network/relay-ca.pem
+Environment=NO_PROXY=127.0.0.1,localhost
+UMask=0077
+Restart=on-failure
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=45
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

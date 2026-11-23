@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.request import Request, urlopen
 
+from .optional_fl import available as fl_available
+
 CAPABILITY_SCHEMA = "sidecar-node-capabilities/1"
 
 
@@ -163,7 +165,7 @@ def load_custom_capabilities(data_dir: Path) -> Dict[str, Any]:
         return {}
 
 
-def collect_capabilities(agent_id: str, data_dir: Path, relay_url: str, relay_token: str = "") -> Dict[str, Any]:
+def collect_capabilities(agent_id: str, data_dir: Path, relay_url: str, relay_token: str = "", direct_endpoint: str = "", tls_fingerprint: str = "") -> Dict[str, Any]:
     return {
         "schema": CAPABILITY_SCHEMA,
         "session_id": str(uuid.uuid4()),
@@ -171,6 +173,12 @@ def collect_capabilities(agent_id: str, data_dir: Path, relay_url: str, relay_to
         "announced_at": int(time.time()),
         "hardware": detect_hardware(),
         "network": probe_relay(relay_url, relay_token),
+        "direct": {
+            "enabled": bool(direct_endpoint),
+            "endpoint": str(direct_endpoint or ""),
+            "tls_fingerprint": str(tls_fingerprint or ""),
+            "protocol": "sidecar-direct/1",
+        },
         "runtime": {
             "python": platform.python_version(),
             "sidecar_protocols": ["agent-message/1", "agent-broadcast/1", "sidecar-mcp/1"],
@@ -181,7 +189,9 @@ def collect_capabilities(agent_id: str, data_dir: Path, relay_url: str, relay_to
             "mcp": True,
             "trace_storage": True,
             "user_skills": True,
-            "federated_learning": True,
+            "bounty_contracts": "sidecar-bounty/1",
+            "decision_heads": ["relay", "node"],
+            "federated_learning": fl_available(),
         },
         "custom": load_custom_capabilities(data_dir),
     }

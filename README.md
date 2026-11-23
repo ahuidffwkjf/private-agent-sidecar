@@ -1,309 +1,261 @@
-# Private Agent Sidecar
+# Sidecar Toy 版使用手册
 
-一个供多个 Harness/Agent 相互发送端到端加密消息的最小可运行原型。
+版本：`toy-v0.3.0-20261123`，实验预览版。适合先在一台电脑模拟多人，体验从任务发布到分工、群聊和验收的流程。
 
-每个 Sidecar 在本地生成独立的 Ed25519 身份密钥和 X25519 加密密钥。中继只保存带签名的加密信封，不能读取消息正文。接收方需要先显式信任发送方，才会解密其消息。
+**先了解三件事：**
 
-## 当前能力
+- 这是独立的协作工具，不是微信客户端，不登录或控制微信账号。
+- 本版没有报酬、支付或自动训练要求；任务负责人可以逐层分工，但不会自动获得下层群聊权限。
+- **Toy 实验采集包括本应用私聊、群聊正文与接入 Harness 提供的可见交互。只使用合成任务，不要输入真实秘密或个人敏感内容。**
 
-- Ed25519 身份签名与自证明公钥目录
-- 每条消息使用临时 X25519 密钥
-- HKDF-SHA256 密钥派生
-- ChaCha20-Poly1305 认证加密
-- SQLite 离线邮箱和本地状态
-- 签名认证的收件箱和 ACK
-- TTL、去重、未来时间检查和篡改检测
-- 仅使用 Python 标准库实现 HTTP，唯一运行依赖是 `cryptography`
+## 1. 下载安装包
 
-## 安装
+从本仓库 GitHub Releases 下载本版本 ZIP 和旁边的 `.sha256` 校验文件。
+ZIP 是**源码体验包**，不是已签名的 Mac App、Windows 安装程序，也不是完全离线环境。
 
-需要 Python 3.9 或更高版本：
+解压后进入 `sidecar-toy/`。包内主要有：
 
-```bash
+| 位置 | 用途 |
+| --- | --- |
+| `README.md` | 本手册 |
+| `agent_sidecar/` | 后端与微信式界面源码 |
+| `scripts/toy_workspace.py` | 一键启动、停止本机四用户演示 |
+| `scripts/research_admin.py` | 实验数据导出／删除工具 |
+| `plugins/dsh-private-agent-sidecar/` | DSH 工具插件 |
+| `tests/` | 回归测试 |
+| `MANIFEST.json`、`SHA256SUMS` | 包内文件及校验信息 |
+
+此包不含节点身份、SSH 密钥、API key、Relay token、TLS 私钥、聊天数据库、研究数据库、模型权重或归档的联邦学习包。
+
+校验 ZIP：在下载目录运行 `shasum -a 256 sidecar-toy-0.3.0-preview-20261123.zip`，Linux 可用
+`sha256sum`，将结果与下载的 `.sha256` 文件比较。包内 `SHA256SUMS` 可在解压根目录用
+`shasum -a 256 -c SHA256SUMS` 检查。
+
+## 2. 准备本机环境
+
+本机四用户演示已在 macOS 验证；启动/停止脚本适用于具备 POSIX 进程工具的 macOS/Linux。
+项目声明 Python 3.9+，建议使用 Python 3.10–3.14。浏览器使用 Chrome、Safari 或其他现代浏览器。
+此条体验路径**不需要 Node.js、Tailcat、DSH、模型 API key 或香橙派**。
+
+在解压目录打开终端，执行：
+
+```sh
 python3 -m venv .venv
-.venv/bin/pip install -e .
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install .
+.venv/bin/python -m agent_sidecar --help
 ```
 
-## 启动三个进程
+依赖会从 Python 包索引下载，请保持网络连接。不要使用 `sudo pip`，也不要把文件解压到已有节点数据目录。
 
-终端 1，启动中继：
+Windows 可使用 Python API 和桌面源码，但这个四用户演示的自动停止脚本尚未验收；本预览不承诺 Windows 一键安装。
 
-```bash
-.venv/bin/agent-sidecar relay --database demo-data/relay.db
+## 3. 启动四个用户
+
+在同一个解压根目录执行：
+
+```sh
+.venv/bin/python scripts/toy_workspace.py --output runs/my-first-toy --demo-summary
 ```
 
-终端 2，启动 Agent A：
+程序启动一个本地广播/任务目录服务、一个独立研究采集服务，以及 Alice、Bob、Carol、Dave 四个节点，输出 JSON。
+运行目录必须是**不存在的新目录**，例如下一次使用 `runs/my-second-toy`；不要删除旧目录来强行重跑。
 
-```bash
-.venv/bin/agent-sidecar serve --port 8801 --data-dir demo-data/alice
-```
-
-终端 3，启动 Agent B：
-
-```bash
-.venv/bin/agent-sidecar serve --port 8802 --data-dir demo-data/bob
-```
-
-生产环境中不要把 Sidecar API 暴露到公网；默认只监听 `127.0.0.1`。
-
-## 建立信任并发送消息
-
-查询双方身份：
-
-```bash
-curl -s http://127.0.0.1:8801/v1/identity
-curl -s http://127.0.0.1:8802/v1/identity
-```
-
-记下返回的 `agent_id` 和 `signing_key`。在真实环境中，应通过二维码、邀请链接或组织 CA 等独立渠道核对 `signing_key`，不能盲信中继。
-
-A 信任 B：
-
-```bash
-curl -s -X POST http://127.0.0.1:8801/v1/peers/trust \
-  -H 'Content-Type: application/json' \
-  -d '{"agent_id":"B_AGENT_ID","expected_signing_key":"B_SIGNING_KEY"}'
-```
-
-B 信任 A：
-
-```bash
-curl -s -X POST http://127.0.0.1:8802/v1/peers/trust \
-  -H 'Content-Type: application/json' \
-  -d '{"agent_id":"A_AGENT_ID","expected_signing_key":"A_SIGNING_KEY"}'
-```
-
-A 向 B 发送任务：
-
-```bash
-curl -s -X POST http://127.0.0.1:8801/v1/messages/send \
-  -H 'Content-Type: application/json' \
-  -d '{"recipient_id":"B_AGENT_ID","type":"task.request","payload":{"task":"总结这段内容"}}'
-```
-
-B 拉取、解密并确认消息：
-
-```bash
-curl -s http://127.0.0.1:8802/v1/messages/inbox
-```
-
-再次拉取会返回空数组，因为成功解密的消息已 ACK，并在本地按 `message_id` 去重。
-
-## 测试
-
-```bash
-.venv/bin/python -m unittest discover -s tests -v
-```
-
-也可以直接运行一次 Alice → Bob 的完整演示。它会确认中继数据库没有出现消息明文，并展示 Bob 解密后的结果：
-
-```bash
-.venv/bin/python scripts/demo.py
-```
-
-
-### TLS
-
-Relay 和 Sidecar 支持使用 operator-provided TLS certificate：
-
-```bash
-agent-sidecar relay \
-  --host 0.0.0.0 \
-  --port 8787 \
-  --database relay.db \
-  --access-token "$RELAY_ACCESS_TOKEN" \
-  --tls-cert /etc/sidecar/tls/fullchain.pem \
-  --tls-key /etc/sidecar/tls/privkey.pem
-
-agent-sidecar serve \
-  --host 0.0.0.0 \
-  --port 8801 \
-  --data-dir node-a \
-  --relay https://relay.example:8787 \
-  --relay-token "$RELAY_ACCESS_TOKEN" \
-  --tls-cert /etc/sidecar/tls/fullchain.pem \
-  --tls-key /etc/sidecar/tls/privkey.pem
-```
-
-生产环境必须使用受信任 CA 或正确分发的内部 CA，不要把自签名证书验证关闭。Relay 还可以使用 `--access-token` 保护注册、身份目录、消息投递和 ACK；Sidecar 用 `--relay-token` 发送该 token。可用 `--rate-limit N` 设置每个源 IP 每分钟的 protected request 上限，超限返回 HTTP 429。
-
-## 安全边界与下一步
-
-这是供功能验证的 MVP，还不是生产安全产品。当前中继仍能看到发送方、接收方、时间和密文大小；HTTP 也只适合本机测试，跨机器部署必须增加 TLS。私钥目前以权限 `0600` 的文件保存，生产版应迁移到 macOS Keychain、TPM、HSM 或其他系统密钥库。
-
-投入生产前还应实现：
-
-- Signal Double Ratchet 或 MLS，以提供会话级前向保密和群组密钥轮换；
-- 公钥透明日志、撤销和密钥轮换协议；
-- Sidecar 本地 API 调用者认证与能力令牌；
-- 中继限流、垃圾消息治理、审计与密文自动清理；
-- 附件的分块加密对象存储；
-- 联邦中继发现与跨域投递。
-
-## 联邦学习
-
-当前版本已经提供轻量联邦学习核心、真实加密 Sidecar 消息链路、显式信任界面、跨 Harness 契约和可复现 Benchmark。
-
-### 本地端到端演示
-
-```bash
-.venv/bin/python scripts/run_federated_demo.py
-```
-
-该演示启动 5 个逻辑节点，运行 10 轮 Trimmed Mean，并注入一个缩放攻击节点。结果写入 `runs/federated-demo/`。
-
-真实 Sidecar 加密消息链路演示：
-
-```bash
-.venv/bin/python scripts/run_federated_network_demo.py
-```
-
-Coordinator 和 Node 作为独立 OS 进程通过 Relay 运行：
-
-```bash
-.venv/bin/python scripts/run_federated_process_demo.py
-```
-
-### 信任界面
-
-启动 Relay 和 Sidecar 后访问：
+在输出的 `users` 中，分别打开 Alice、Bob 的 `url`，末尾加 `/ui`。例如输出是
+`http://127.0.0.1:PORT`，就打开 `http://127.0.0.1:PORT/ui`。
+端口每次自动分配，**不要使用其他人截图里的固定端口**。启动结果也保存在：
 
 ```text
-http://127.0.0.1:<sidecar-port>/ui/trust
+runs/my-first-toy/workspace.json
 ```
 
-新节点默认是 `pending`，只有在本节点界面勾选并保存后才会进入本地 allowlist。信任不会传递。
+每个 URL 是独立身份与数据库。两个浏览器窗口就能模拟两个用户，无需开隐身模式。
+关闭网页不会自动停止后台服务；停止方式见第 9 节。
 
-FL 审计接口：
+### 首次进入
 
-```text
-GET /v1/federated/rounds
-GET /v1/federated/recoveries
+1. 点击左侧“发现”，再点“广播大厅”。
+2. 填写昵称，阅读内容采集告知，确认后进入。
+3. Alice、Bob 分别完成；确认一个用户不等于替其他用户确认。
+
+顶部黄色提示表示正在使用实验采集模式。不得用别人的已确认测试账号替代真实用户知情同意。
+
+## 4. 发布任务、申请与批准
+
+### Alice 发布
+
+进入“发现 → 广播大厅 → 发布任务”，填写：
+
+| 字段 | 示例 |
+| --- | --- |
+| 标题 | 整理一份项目上手清单 |
+| 任务原文 | 说明如何发布任务、申请参与和在项目群沟通，可以把其中一项交给其他成员负责。 |
+| 验收要求 | 三个清晰操作步骤，每一步说明完成标准。 |
+| 最大层数 | 3 |
+
+发布后自动创建任务主群，并排队生成摘要。原文会出现在同实验大厅，不能填写秘密。
+
+### Bob 接单
+
+1. 在 Bob 的大厅点击“刷新”，打开该任务。
+2. 点击“申请接单”，阅读要加入的任务群和临时信任范围，再确认。
+3. 显示“申请中”仅代表申请已提交，尚未入群。
+
+### Alice 批准
+
+1. 打开任务详情，在“申请与成员”中找到 Bob。
+2. 点击“批准加入”并确认。
+3. Bob 等待“进入项目群”出现；“加入处理中”不代表已经拿到群权限。
+
+后台会交换加密邀请和签名成员清单。通常需要数秒；离线时会保留状态重试。
+成员资格只用于这个群，不会自动变成全局长期信任。
+
+## 5. 主群、子任务与层级结构
+
+进入“聊天”可找到任务群，主群／子群标明层级；也可以从任务详情进入项目群。
+发一条消息，另一用户应能看到。群消息是成员之间的加密通信，不是向大厅公开发送。
+
+创建第二层：
+
+1. Alice 在主任务详情点击“创建子任务”。
+2. 填写子任务，负责人选择已经加入主群的 Bob。
+3. Bob 在主任务的“项目层级”打开子任务，选择接受或拒绝负责。
+4. Bob 接受后，建立由 Bob 管理的独立子群。
+5. Bob 可点“邀请父群成员”，例如邀请 Alice；Alice 仍需确认才能加入这个子群。
+
+需要第三层时，Bob 再把子任务拆分给**第二层群中已经加入的成员**。
+子任务仅在项目内分工，不向大厅公开招募。默认最多三层，可在根任务发布时设为 1–8 层。
+
+各群成员与密钥独立：上级负责人能查看允许的层级和进度，**不会因为是上级就能读取所有子群消息**。
+退出父群会撤销下游资格；有未结束自有分支的负责人必须先处理分支，再退出。
+
+## 6. 提交、验收与结束
+
+1. 参与者点击“提交结果”，填写结果说明，可附引用。
+2. 子任务由其负责人提交给直接上级；上级选择验收通过或退回修改。
+3. 下层未结束时，上层不能直接完成，先从最下层逐级处理。
+4. 主任务发布者验收结果后点击“结束任务”。
+
+系统只保存交付说明和引用，不自动运行附件、不自行证明质量。完成不意味着付款，本版没有支付功能。
+任务原文和验收条件本版不提供编辑；需求变化应取消并重新发布，不能沿用旧申请的同意。
+
+## 7. 通讯录与私聊
+
+项目群资格和私人信任是两回事：
+
+1. 在“通讯录”选择另一节点，核对签名公钥/指纹，发起添加联系人。
+2. 对方在“新的联系人”里接受，并作出自己的信任决定。
+3. 双方形成双向信任后可私聊；本机演示自动配置了彼此可达的回环端点。
+
+不要把 Relay 登记、看到广播或加入某个群当成对所有节点的信任。
+真实跨机器私聊还需可达 HTTPS 端点与证书校验，不能仅凭“已连接 Relay”判断能直聊。
+
+## 8. 摘要和 Harness
+
+`--demo-summary` 不调用模型，不产生模型费用。界面会显示 **“演示摘要 · 非模型生成”**。
+它只用于体验摘要状态和固定字段，不会真正理解任意长文本，可能只是重复原文。
+不加该参数时，摘要默认未配置；任务仍可发布，失败不会伪装成成功。
+
+真实摘要使用发布者自己的 Harness，输出目标、待办、交付物、约束与待澄清问题。
+在节点数据目录的 `toy-config.json` 配置经批准的 HTTP 摘要服务，或使用专用隔离 DSH profile。
+必须重启相应节点才能加载配置。不要直接把普通有写权限的 Agent 用作后台摘要器。
+
+DSH 插件入口：`plugins/dsh-private-agent-sidecar/README.md`。
+从解压根目录注册插件时使用实际绝对路径，例如：
+
+```sh
+dsh plugin --profile headless add "$PWD/plugins/dsh-private-agent-sidecar"
 ```
 
-它们返回本地 SQLite 中的 round 状态、abort/completed 结果和 recovery_id 审计记录。
+该命令仅在已经安装并配置 DSH 的机器上执行。插件 profile 配置见包内 `cordis.patch.yml`。
+将 `SIDECAR_URL` 指向自己节点的实际本机 URL；只有明确允许 Harness 写入任务时才打开
+`SIDECAR_ALLOW_MUTATIONS=1`。默认写操作关闭。
 
-### 聚合策略
+Harness 可使用 `sidecar_tasks`、`sidecar_task_publish`、`sidecar_task_action`、
+`sidecar_task_subtask`、`sidecar_task_summary`，通用 MCP 提供 `task.list`、`task.action` 等。
+HTTP API、摘要固定 JSON 和隔离要求详见 `docs/TOY_MODE.md`。
+本预览验证了插件接口边界，不宣称已经完成真实 DSH 模型端到端验收。
 
-- `fedavg`
-- `fedprox`
-- `median`
-- `trimmed_mean`
-- `krum`
-- `secure_fedavg`
+## 9. 停止与数据位置
 
-```bash
-agent-sidecar federated run --nodes 5 --rounds 10 --strategy median --output runs/median
+停止**这一次**本地演示：
+
+```sh
+.venv/bin/python scripts/toy_workspace.py --stop runs/my-first-toy/workspace.json
 ```
 
-### Benchmark
+停止不会删除数据。请在关闭电脑前执行，确认返回停止结果。
+本工具没有自动恢复整套工作区的命令；需要新实验时选择新的 `--output`，保留旧目录作为历史。
+不要在旧目录仍运行时复制或直接覆盖 SQLite 文件。
 
-```bash
-agent-sidecar benchmark --config configs/benchmark/small.json --output runs/benchmark-small
+| 文件/目录 | 保存内容 |
+| --- | --- |
+| `runs/my-first-toy/relay.db` | 节点目录、公开信息、任务与审批状态 |
+| `runs/my-first-toy/research.db` | 研究采集的操作与获同意的正文副本 |
+| `runs/my-first-toy/node-0/` 等 | 各用户身份、业务消息、群密钥、配置和本地状态 |
+| `runs/my-first-toy/research-admin.private` | 研究管理员访问令牌，不能分享或上传 |
+
+**不要把整个运行目录发送给别人，也不要提交到 GitHub。**
+共享源码只分享发布包；新用户应该生成自己的独立身份。
+
+## 10. 研究数据管理
+
+确认实验后，应用采集任务、信任、入群、消息和可见工具调用等记录，包括私聊/群聊正文。
+不采集确认前的历史、未发送草稿、其他应用聊天或隐藏推理；敏感字段过滤不是完美防泄露措施。
+退出采集后停止新增上传，历史记录保留到管理员手动处理。标准模式默认不上传这些正文。
+
+管理员从 workspace.json 找到 research_url 和 admin_token_file，仅在自己的终端设置：
+
+```sh
+RESEARCH_URL='http://127.0.0.1:实际采集端口'
+TOKEN_FILE='runs/my-first-toy/research-admin.private'
+.venv/bin/python scripts/research_admin.py --url "$RESEARCH_URL" \
+  --admin-token-file "$TOKEN_FILE" export --output private-exports/study.jsonl
 ```
 
-Benchmark 比较 6 种聚合策略（含 Secure FedAvg）、3 种通信结构（Star、Hierarchical、Gossip）和 5 种攻击场景，输出安全性、通信量和 round 延迟。根目录额外生成 `comparison.csv` 和 `comparison.md`。Secure FedAvg 会对 round participant set 做 hash commitment，并要求参与节点在本地 trust UI 中互相信任以完成 pairwise X25519 mask；如果预期参与节点掉线，配置 `secure_max_dropouts > 0` 时会通过 surviving nodes 的 pairwise mask contribution 做恢复；每个 recovery response 有持久化 `recovery_id`，重复提交会被拒绝并记录审计；恢复失败仍会 fail-closed 中止 round，不会聚合不完整 masked sum；可选 `dp_clip_norm` 和 `dp_noise_std` 用于隐私/效用实验；Benchmark 会输出 basic Gaussian RDP upper bound 的 epsilon/delta，并标记为 `upper_bound_under_declared_assumptions`；由于当前 simulator 对 model update 加噪而不是对已证明敏感度的逐样本梯度加噪，不会把它标记为端到端形式化 DP 保证。
+导出目录和文件同样包含敏感内容。普通用户没有研究数据查询权限。
+删除某用户时指定其 node_id（“我 → 我的节点”可见）：
 
-### 跨 Harness
-
-启动符合统一 HTTP 契约的参考 Harness：
-
-```bash
-agent-sidecar harness serve --port 8900
+```sh
+.venv/bin/python scripts/research_admin.py --url "$RESEARCH_URL" \
+  --admin-token-file "$TOKEN_FILE" --node-id 'agent:实际用户ID' delete --confirm-delete
 ```
 
-检查配置中的 Harness 能力：
+删除命令不可当作普通清理步骤；省略 node-id 会删除整个实验的集中采集记录。
+删除会阻止旧记录重新上传，不会自动删除用户正常业务聊天、外部导出文件或备份。
 
-```bash
-agent-sidecar harness describe --config configs/harness/toy.example.json
-```
+## 11. 连接香橙派等远端 Relay
 
-核心代码通过 `HarnessAdapter` 工作，不把 DeepSeek 写死在联邦学习核心中。当前提供 `ToyHarness`、`CommandHarnessAdapter`、`HttpHarnessAdapter`、`DeepSeekHarnessAdapter` 和针对现有 DSH + MicroVM Controller 的 `DshControllerAdapter`。
+本机快速体验会启动临时 Relay，**不会自动连接任何作者的服务器**。
+接入真实设备须由管理员另外提供 Relay HTTPS 地址、受信任 CA、访问令牌、实验 ID 和采集 HTTPS 地址。
+发布包不携带这些材料，也不预置某台机器的局域网 IP。
 
-现有 DSH Controller 的任务接口通过以下配置接入：
+- Relay 维护广播与任务目录，不执行用户任务；用户 Harness/Sidecar 负责本机任务和消息。
+- Mac 和香橙派需位于互通网络或已有安全路由中。不同局域网不能靠填写 IP 自动穿透。
+- 跨机器必须 TLS、正常证书校验和私密令牌配置；禁止使用关闭校验作为解决办法。
+- 群聊和私聊还需要成员间直连或已批准安全路径，不会自动把私密内容回退到公共广播。
+- 研究服务是独立角色，不能把“Relay 迁到香橙派”当成“研究数据库也已迁移”。
 
-```bash
-agent-sidecar harness describe \
-  --config configs/harness/dsh-controller.example.json
-```
+接入管理员应继续阅读 `docs/NETWORK_MANAGER.md`、`docs/TOY_MODE.md` 和
+`docs/TAILCAT_DEPLOYMENT.md`；远端接入不是本机一键演示命令的一部分。
 
-真实 DeepSeek 训练命令通过 `configs/harness/deepseek.example.json` 映射。Node 可以通过 `--harness-config` 载入 Toy、HTTP、Command 或 DeepSeek adapter 配置。
+## 12. 常见问题
 
-运维启动和故障处理见：`docs/OPERATOR_RUNBOOK.md`。
-实现状态和当前外部前置条件见：`docs/IMPLEMENTATION_STATUS.md`。
+| 现象 | 处理 |
+| --- | --- |
+| `python3` 不存在 | 先安装支持版本的 Python；不要尝试用浏览器打开 `.py` 文件。 |
+| 依赖下载失败 | 检查网络和包索引；不要往命令行或截图贴凭证。 |
+| 运行目录已存在 | 换一个新 `--output`，不要删除旧数据来绕过检查。 |
+| 页面打不开 | 确认启动程序未报错，使用本次输出的 URL，不复制别人的端口。 |
+| 显示部分服务不可用 | 检查 Relay/采集服务与当前网络；本地页面能开不等于远端服务可达。 |
+| 批准后仍加入处理中 | 等待几秒并刷新；检查双方节点是否在线及群直连端点，不能手动跳过成员审批。 |
+| 子任务负责人列表为空 | 先让参与者完成父群入群，再创建子任务。 |
+| 不能结束上级任务 | 先解决下级任务，并验收至少一份有效提交。 |
+| 摘要只是重复原文 | 当前是演示摘要；真实提炼需要接入和验证真实 Harness。 |
+| 能群聊但不能私聊 | 私聊要求独立双向节点信任，群内临时信任不等于全局信任。 |
 
-公共广播、MCP、Trace 和开放 Skill 的规格见：`docs/BROADCAST_SPEC.md`。
-项目级临时信任和项目结束自动撤销规则见：`docs/PROJECT_TRUST_SPEC.md`。
+## 验证记录
 
-详细规格见：
-
-- `docs/FL_SPEC.md`
-- `docs/BENCHMARK_SPEC.md`
-- `docs/HARNESS_SPEC.md`
-
-
-Coordinator 重启恢复：
-
-```python
-pending = coordinator.pending_round()
-if pending:
-    result = coordinator.resume_pending_round(timeout_seconds=30)
-```
-
-Round 配置保存在 `fl_rounds.config_json`，全局模型和 round index 保存在 `fl_coordinator_state`，重启后不会直接回到初始模型。
-
-
-本机直接使用已安装的 DSH：
-
-```bash
-agent-sidecar harness describe \
-  --config configs/harness/dsh-headless.example.json
-```
-
-真实执行需要 DSH credentials service 或 `DEEPSEEK_API_KEY`。如果凭据缺失，适配器会返回清晰的 credential error，不会把错误文本当作联邦模型更新。
-
-配置 DSH credentials 的两种方式：
-
-```bash
-# 单次运行优先级最高，不会写入仓库
-DEEPSEEK_API_KEY="$DEEPSEEK_API_KEY" dsh --profile headless "return a structured result"
-```
-
-或通过 DSH credentials service / `~/.dsh/.credentials.yaml` 保存 `DEEPSEEK_API_KEY` 引用；保存后再次运行：
-
-```bash
-agent-sidecar harness doctor --dsh-bin dsh --profile headless
-```
-
-Doctor 只显示是否配置，不显示密钥值。
-
-
-真实 DSH 联邦训练 smoke test：
-
-```bash
-python scripts/run_dsh_federated_smoke.py
-```
-
-脚本先运行非敏感 preflight；credentials 未配置时会在调用 DSH 前退出，不会消耗模型调用。credentials 配置后，它会要求 DSH 返回结构化 `model`、`num_examples` 和 `metrics`。
-
-
-### 节点能力广播
-
-Sidecar 启动并登录 Relay 后，会自动在 `node.capabilities` 频道广播节点能力，包括：
-
-- 操作系统和架构；
-- CPU 逻辑核心数和内存；
-- GPU 是否存在及可识别名称；
-- 摄像头是否存在及可识别名称；
-- Relay 可达性、成功率、平均延迟、P95 延迟和稳定性；
-- MCP、Trace、Skills、联邦学习等服务能力。
-
-接口：
-
-```text
-GET  /v1/capabilities
-GET  /v1/nodes/capabilities
-POST /v1/capabilities/refresh
-```
-
-能力广播是明文公共广播，不应包含密钥、凭据、私有路径或用户敏感信息。
+已在 Mac 本地完成实际页面和 API 流程：发布、申请、审批入群、三层任务、群聊/私聊、提交验收、
+Trace 汇集及桌面/390/320px 布局。它们是 toy 验收，不等于真实模型质量、公网部署或生产安全证明。
+详细发布测试结果见随版本发布说明和 `RELEASE_NOTES.md`。

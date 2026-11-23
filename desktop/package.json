@@ -1,0 +1,81 @@
+{
+  "name": "sidecar-desktop",
+  "productName": "Sidecar",
+  "version": "0.2.0",
+  "description": "Sidecar desktop chat workspace",
+  "author": "Private Agent Sidecar contributors",
+  "private": true,
+  "engines": {"node": ">=22.12.0"},
+  "main": "main.cjs",
+  "scripts": {
+    "setup": "node scripts/python.cjs setup",
+    "start": "node scripts/python.cjs setup && electron .",
+    "test": "node --test tests/policy.test.cjs",
+    "smoke": "node scripts/smoke.cjs",
+    "backend:build": "node scripts/python.cjs build",
+    "runtime:install": "node node_modules/electron/install.js",
+    "pack": "npm run backend:build && npm run runtime:install && electron-builder --dir --publish never",
+    "dist": "npm run backend:build && npm run runtime:install && electron-builder --publish never && node scripts/mac-dmg.cjs && node scripts/checksums.cjs"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0",
+    "playwright-core": "1.64.1"
+  },
+  "build": {
+    "appId": "org.privateagentsidecar.desktop",
+    "asar": true,
+    "electronDist": "node_modules/electron/dist",
+    "icon": "assets/icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.cjs",
+      "policy.cjs",
+      "settings.html",
+      "settings.js",
+      "settings.css",
+      "preload.cjs",
+      "assets/**",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend-dist/SidecarBackend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "artifactName": "Sidecar-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "category": "public.app-category.social-networking",
+      "target": [
+        "zip"
+      ],
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "zip"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Network",
+      "maintainer": "Private Agent Sidecar contributors"
+    }
+  }
+}

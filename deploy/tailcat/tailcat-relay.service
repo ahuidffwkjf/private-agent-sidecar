@@ -1,0 +1,28 @@
+[Unit]
+Description=Tailcat v0.7.0 tunnel for Sidecar HTTPS Relay
+After=network-online.target agent-relay.service
+Wants=network-online.target
+Requires=agent-relay.service
+
+[Service]
+Type=simple
+User=agent-relay
+Group=agent-relay
+WorkingDirectory=/opt/private-agent-sidecar
+Environment=HOME=/var/lib/tailcat-relay
+Environment=XDG_CONFIG_HOME=/var/lib/tailcat-relay/config
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/agent-sidecar/tailcat-server.env
+ExecStart=/opt/private-agent-sidecar/.venv/bin/python /opt/private-agent-sidecar/scripts/tailcat_deploy.py serve
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+StateDirectory=tailcat-relay
+StateDirectoryMode=0700
+
+[Install]
+WantedBy=multi-user.target

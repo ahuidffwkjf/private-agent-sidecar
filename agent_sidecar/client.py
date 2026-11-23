@@ -67,6 +67,12 @@ class RelayClient:
         query = urlencode({"limit": limit, "channel": channel, "since": since})
         return self._request("GET", "/v1/broadcasts?" + query)["broadcasts"]
 
+    def bounty_feed(self, after=0, limit=100):
+        return self._request("GET", "/v1/bounty-events?" + urlencode({"after": after, "limit": limit}))
+
+    def publish_bounty_event(self, event):
+        return self._request("POST", "/v1/bounty-events", event)
+
     def inbox(self, limit: int = 100) -> List[Dict[str, Any]]:
         timestamp = int(time.time())
         signature = self.identity.sign(auth_payload("inbox", self.identity.agent_id, timestamp))

@@ -1,0 +1,8 @@
+- insert:
+    - id: private-agent-sidecar
+      name: '@private-agent-sidecar/dsh-plugin'
+      config:
+        baseUrl: !!js process.env.SIDECAR_URL ?? 'http://127.0.0.1:8801'
+        allowMutations: !!js process.env.SIDECAR_ALLOW_MUTATIONS === '1'
+        allowRemote: false
+        requestTimeoutMs: 10000

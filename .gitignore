@@ -6,11 +6,25 @@ __pycache__/
 *.db-wal
 .pytest_cache/
 demo-data/
+private-exports/
+research-admin.private
 
 runs/
 build/
 dist/
+desktop/node_modules/
+desktop/release/
+desktop/backend-dist/
+desktop/backend-build/
+desktop/.venv/
 *.egg-info/
+
+# Runtime tunnel addresses, node keys and operator-local deployment settings
+runtime/
+*.private.json
+tailcat-server-address
+tailcat-client-public-key
+deploy/tailcat/*.env
 
 # macOS and local office artifacts
 .DS_Store

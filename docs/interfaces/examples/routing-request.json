@@ -1,0 +1,13 @@
+{
+  "target": {
+    "kind": "project",
+    "project_id": "project-demo"
+  },
+  "message": {
+    "type": "chat.message",
+    "payload": {
+      "text": "project update"
+    }
+  },
+  "ttl_seconds": 86400
+}

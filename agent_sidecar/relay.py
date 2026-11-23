@@ -34,6 +34,8 @@ def _authorized(store: RelayStore, action: str, body: Dict[str, Any], target: st
 
 
 def make_handler(store: RelayStore, access_token: str = "", rate_limit_per_minute: int = 0):
+    from .toy_directory import TaskDirectory
+    task_directory = TaskDirectory(store)
     rate_lock = threading.RLock()
     request_times = defaultdict(deque)
 
@@ -86,6 +88,12 @@ def make_handler(store: RelayStore, access_token: str = "", rate_limit_per_minut
                     query = {key: values[0] for key, values in parse_qs(parsed.query).items()}
                     self.send_json(200, {"broadcasts": store.broadcasts(int(query.get("limit", 100)), query.get("channel"), int(query.get("since", 0)))})
                     return
+                if parsed.path == "/v1/bounty-events":
+                    if not require_access(self):
+                        return
+                    query = {key: values[0] for key, values in parse_qs(parsed.query).items()}
+                    self.send_json(200, store.bounty_events(int(query.get("after", 0)), int(query.get("limit", 100))))
+                    return
                 if parsed.path == "/v1/messages":
                     if not require_access(self):
                         return
@@ -114,6 +122,11 @@ def make_handler(store: RelayStore, access_token: str = "", rate_limit_per_minut
             parsed = urlparse(self.path)
             try:
                 body = self.read_json()
+                if parsed.path == "/v1/toy":
+                    if not require_access(self):
+                        return
+                    self.send_json(200, task_directory.handle(body))
+                    return
                 if parsed.path == "/v1/agents":
                     if not require_access(self):
                         return
@@ -128,8 +141,16 @@ def make_handler(store: RelayStore, access_token: str = "", rate_limit_per_minut
                         self.send_json(403, {"error": "sender is not registered"})
                         return
                     verify_broadcast(body, sender)
+                    if body.get("channel") == "sidecar.bounty.v1":
+                        raise ValueError("use /v1/bounty-events for bounty control events")
                     store.enqueue_broadcast(body)
                     self.send_json(201, {"broadcast_id": body["broadcast_id"]})
+                    return
+                if parsed.path == "/v1/bounty-events":
+                    if not require_access(self):
+                        return
+                    seq = store.enqueue_bounty_event(body)
+                    self.send_json(201, {"event_id": body["broadcast_id"], "seq": seq})
                     return
                 if parsed.path == "/v1/messages":
                     if not require_access(self):

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sidecar · 聊天</title>
+  <link rel="stylesheet" href="/ui/app.css">
+  <script defer src="/ui/lucide.js"></script>
+  <script defer src="/ui/toy.js"></script>
+  <script defer src="/ui/app.js"></script>
+</head>
+<body>
+<div id="app" class="app">
+  <nav class="rail" aria-label="主导航">
+    <button class="profile-avatar" data-view="me" aria-label="个人中心" title="个人中心">S</button>
+    <button class="nav-button active" data-view="chats" title="聊天" aria-label="聊天"><i data-lucide="message-circle"></i><span>聊天</span></button>
+    <button class="nav-button" data-view="contacts" title="通讯录" aria-label="通讯录"><i data-lucide="contact-round"></i><span>通讯录</span></button>
+    <button class="nav-button" data-view="discover" title="发现" aria-label="发现"><i data-lucide="compass"></i><span>发现</span></button>
+    <button class="nav-button" data-view="skills" title="Skills" aria-label="Skills"><i data-lucide="blocks"></i><span>Skills</span></button>
+    <div class="rail-spacer"></div>
+    <button class="nav-button" data-view="me" title="我" aria-label="我"><i data-lucide="user-round"></i><span>我</span></button>
+    <a class="nav-button advanced" href="/ui/admin" title="高级管理" aria-label="高级管理"><i data-lucide="settings-2"></i></a>
+  </nav>
+  <aside class="list-pane">
+    <header class="list-header"><h1 id="view-title">聊天</h1><button class="icon-button" id="add" title="创建项目讨论" aria-label="创建项目讨论"><i data-lucide="square-pen"></i></button></header>
+    <div class="search-box"><i data-lucide="search"></i><input id="search" type="search" placeholder="搜索" aria-label="搜索会话、联系人或功能"></div>
+    <div id="filters"></div>
+    <div id="list" class="list" aria-label="会话列表"><p class="empty-small">正在连接…</p></div>
+    <footer class="connection"><span id="connection-dot"></span><span id="connection-label">连接中</span><button class="icon-button" id="refresh" title="刷新" aria-label="刷新"><i data-lucide="refresh-cw"></i></button></footer>
+  </aside>
+  <main class="main-pane">
+    <header class="main-header"><button class="icon-button back" id="back" title="返回列表" aria-label="返回列表"><i data-lucide="chevron-left"></i></button><div class="heading"><h2 id="detail-title">公共广场</h2><p id="detail-subtitle">公开广播 · Relay</p></div><button class="icon-button" id="detail-action" title="详情" aria-label="详情"><i data-lucide="ellipsis"></i></button></header>
+    <div id="error" class="error" role="alert" hidden></div>
+    <div id="content" class="content"><div class="empty"><i data-lucide="messages-square"></i><h3>正在连接 Sidecar</h3></div></div>
+    <form id="composer" class="composer" hidden>
+      <div class="compose-tools"><button class="icon-button" id="emoji" type="button" title="表情" aria-label="表情"><i data-lucide="smile"></i></button><span id="compose-route">公开广播</span></div>
+      <div id="emoji-picker" class="emoji-picker" hidden></div>
+      <textarea id="message" rows="3" placeholder="输入消息" aria-label="消息内容" maxlength="20000"></textarea>
+      <div class="compose-bottom"><span id="send-status" role="status"></span><button id="send" class="primary" type="submit">发送 <i data-lucide="send" aria-hidden="true"></i></button></div>
+    </form>
+  </main>
+</div>
+<dialog id="dialog"><form method="dialog" class="dialog-head"><h2 id="dialog-title">详情</h2><button class="icon-button" title="关闭" aria-label="关闭"><i data-lucide="x"></i></button></form><div id="dialog-body"></div></dialog>
+<div id="toast" role="status" hidden></div>
+</body>
+</html>
