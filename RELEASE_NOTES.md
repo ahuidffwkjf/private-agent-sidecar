@@ -5,7 +5,7 @@
 | 系统 | 下载 |
 | --- | --- |
 | Windows x64 | `Sidecar-Toy-0.3.2-win-x64.exe` 或 `.zip` |
-| Linux x64 | `Sidecar-Toy-0.3.2-linux-x64.deb` 或 `.AppImage` |
+| Linux x64 | `Sidecar-Toy-0.3.2-linux-amd64.deb` 或 `Sidecar-Toy-0.3.2-linux-x86_64.AppImage` |
 | Mac Apple Silicon | `Sidecar-Toy-0.3.2-mac-arm64.dmg` 或 `.zip` |
 | Mac Intel | `Sidecar-Toy-0.3.2-mac-x64.dmg` 或 `.zip` |
 

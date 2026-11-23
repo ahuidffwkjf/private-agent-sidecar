@@ -107,7 +107,7 @@ class DesktopRuntime:
             server = ThreadingHTTPServer(('127.0.0.1', 0), sidecar_handler(None))
             self.servers.append(server)
             self.url = f'http://127.0.0.1:{server.server_port}'
-            self.sidecar = Sidecar(self.root / 'node', f'http://127.0.0.1:{relay.server_port}', relay_token, self.url)
+            self.sidecar = Sidecar(self.root / 'node', f'http://127.0.0.1:{relay.server_port}', relay_token, self.url, hardware_profile='basic')
             self.stores.append(self.sidecar.store)
             server.RequestHandlerClass = desktop_handler(self.sidecar, self.token, self.url)
             self._start_server(server)

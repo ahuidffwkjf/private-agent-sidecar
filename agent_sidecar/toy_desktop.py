@@ -55,7 +55,7 @@ class ToyDesktopRuntime(DesktopRuntime):
                 server = ThreadingHTTPServer(("127.0.0.1", 0), sidecar_handler(None))
                 self.servers.append(server)
                 url = f"http://127.0.0.1:{server.server_port}"
-                node = Sidecar(node_root, f"http://127.0.0.1:{relay.server_port}", relay_token, url)
+                node = Sidecar(node_root, f"http://127.0.0.1:{relay.server_port}", relay_token, url, hardware_profile="basic")
                 self.sidecars.append(node)
                 self.stores.append(node.store)
                 server.RequestHandlerClass = desktop_handler(node, self.token, url)

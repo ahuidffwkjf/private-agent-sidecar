@@ -14,6 +14,17 @@ from agent_sidecar.toy_desktop import ToyDesktopRuntime
 
 
 class ToyDesktopTests(unittest.TestCase):
+    def test_basic_hardware_does_not_invoke_device_subprocesses(self):
+        from agent_sidecar.capabilities import detect_hardware
+        detect_hardware.cache_clear()
+        try:
+            with patch('agent_sidecar.capabilities.subprocess.run') as run:
+                value=detect_hardware('basic')
+                run.assert_not_called()
+            self.assertIsNone(value['gpu']['present'])
+            self.assertEqual(value['camera']['source'],'not-probed')
+        finally:
+            detect_hardware.cache_clear()
     def test_owned_runtime_preserves_bypasses_and_excludes_loopback(self):
         with tempfile.TemporaryDirectory() as temporary, patch.dict(os.environ, {'no_proxy':'internal.example'}):
             runtime=ToyDesktopRuntime(Path(temporary), secrets.token_hex(32))

@@ -139,7 +139,7 @@ if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded'
 
 
 class Sidecar:
-    def __init__(self, data_dir: Path, relay_url: str, relay_token: str = "", direct_endpoint: str = "", direct_tls_fingerprint: str = "", project_key_backend: str = "sqlite", project_key_command: Optional[list[str]] = None, allow_offline: bool = False):
+    def __init__(self, data_dir: Path, relay_url: str, relay_token: str = "", direct_endpoint: str = "", direct_tls_fingerprint: str = "", project_key_backend: str = "sqlite", project_key_command: Optional[list[str]] = None, allow_offline: bool = False, hardware_profile: str = "full"):
         data_dir.mkdir(parents=True, exist_ok=True)
         self.identity = Identity.load_or_create(data_dir / "identity.json")
         self.store = LocalStore(data_dir / "state.db", create_project_key_backend(project_key_backend, data_dir, project_key_command))
@@ -158,7 +158,8 @@ class Sidecar:
             if not allow_offline:
                 raise
         self.bootstrap_runtime()
-        self.capabilities = collect_capabilities(self.identity.agent_id, data_dir, relay_url, relay_token, self.direct_endpoint, self.direct_tls_fingerprint)
+        self.hardware_profile = hardware_profile
+        self.capabilities = collect_capabilities(self.identity.agent_id, data_dir, relay_url, relay_token, self.direct_endpoint, self.direct_tls_fingerprint, hardware_profile)
         descriptor_path = data_dir / "harness-descriptor.json"
         if fl_available() and descriptor_path.exists():
             try:
@@ -184,7 +185,7 @@ class Sidecar:
 
     def refresh_capabilities(self) -> Dict[str, Any]:
         harness = self.capabilities.get("harness")
-        self.capabilities = collect_capabilities(self.identity.agent_id, self.store.data_dir, self.relay.relay_url(), self.relay.access_token, self.direct_endpoint, self.direct_tls_fingerprint)
+        self.capabilities = collect_capabilities(self.identity.agent_id, self.store.data_dir, self.relay.relay_url(), self.relay.access_token, self.direct_endpoint, self.direct_tls_fingerprint, getattr(self, "hardware_profile", "full"))
         if harness:
             self.capabilities["harness"] = harness
         (self.store.data_dir / "capabilities.json").write_text(json.dumps(self.capabilities, ensure_ascii=False, indent=2) + "\n", "utf-8")

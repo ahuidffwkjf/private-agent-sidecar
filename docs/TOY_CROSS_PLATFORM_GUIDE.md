@@ -8,7 +8,7 @@ Release 只有在四个原生平台均通过应用及下载产物验证后才发
 | 你的电脑 | 推荐文件 | 其他选择 |
 | --- | --- | --- |
 | Windows x64（常见 Intel/AMD 电脑） | `Sidecar-Toy-0.3.2-win-x64.exe` | 同名 `.zip`，完整解压后打开 `Sidecar Toy.exe` |
-| Linux x64 | `Sidecar-Toy-0.3.2-linux-x64.deb`（Debian/Ubuntu） | `.AppImage` 用于兼容发行版 |
+| Linux x64 | `Sidecar-Toy-0.3.2-linux-amd64.deb`（Debian/Ubuntu） | `Sidecar-Toy-0.3.2-linux-x86_64.AppImage` 用于兼容发行版 |
 | Mac M 系列（Apple Silicon） | `Sidecar-Toy-0.3.2-mac-arm64.dmg` | 同名 `.zip` |
 | Mac Intel | `Sidecar-Toy-0.3.2-mac-x64.dmg` | 同名 `.zip` |
 
@@ -53,6 +53,8 @@ macOS 快捷键为 Command+1..4，Windows/Linux 为 Ctrl+1..4；Windows/Linux �
 
 默认不需要联网，不自动连接发布者的香橙派或任何私有服务器。
 摘要明确标注“演示摘要 · 非模型生成”，没有模型下载或费用；真实模型/远程接入仍需额外配置。
+桌面版只读取系统、CPU 架构与核心数等基础信息，不在启动时枚举 GPU 或摄像头；
+未探测的设备明确标为未知，不代表设备不存在。独立 Sidecar 服务的默认探测行为不变。
 
 ## 退出与数据
 

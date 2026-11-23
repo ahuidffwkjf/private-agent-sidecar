@@ -98,8 +98,18 @@ def _camera_info() -> Dict[str, Any]:
     return {"present": bool(names), "count": len(names), "names": names, "source": source}
 
 
-@lru_cache(maxsize=1)
-def detect_hardware() -> Dict[str, Any]:
+@lru_cache(maxsize=2)
+def detect_hardware(profile: str = "full") -> Dict[str, Any]:
+    if profile not in {"full", "basic"}:
+        raise ValueError("unknown hardware discovery profile")
+    if profile == "basic":
+        # Desktop startup must not wait on OS device enumerators. Unknown is
+        # explicit, not a claim that the machine has no GPU or camera.
+        return {"platform": platform.system().lower(), "platform_release": platform.release(),
+                "architecture": platform.machine(), "cpu_logical_cores": os.cpu_count(),
+                "memory_bytes": None,
+                "gpu": {"present": None, "count": None, "names": [], "source": "not-probed"},
+                "camera": {"present": None, "count": None, "names": [], "source": "not-probed"}}
     return {
         "platform": platform.system().lower(),
         "platform_release": platform.release(),
@@ -165,13 +175,13 @@ def load_custom_capabilities(data_dir: Path) -> Dict[str, Any]:
         return {}
 
 
-def collect_capabilities(agent_id: str, data_dir: Path, relay_url: str, relay_token: str = "", direct_endpoint: str = "", tls_fingerprint: str = "") -> Dict[str, Any]:
+def collect_capabilities(agent_id: str, data_dir: Path, relay_url: str, relay_token: str = "", direct_endpoint: str = "", tls_fingerprint: str = "", hardware_profile: str = "full") -> Dict[str, Any]:
     return {
         "schema": CAPABILITY_SCHEMA,
         "session_id": str(uuid.uuid4()),
         "agent_id": agent_id,
         "announced_at": int(time.time()),
-        "hardware": detect_hardware(),
+        "hardware": detect_hardware(hardware_profile),
         "network": probe_relay(relay_url, relay_token),
         "direct": {
             "enabled": bool(direct_endpoint),

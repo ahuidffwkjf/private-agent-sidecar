@@ -42,7 +42,7 @@ try{
     }finally{run('/usr/bin/hdiutil',['detach',mount]);}
   }else if(process.platform==='win32'){
     const zip=asset('.zip'),unpack=path.join(temporary,'zip');
-    run('powershell.exe',['-NoProfile','-NonInteractive','-Command','Expand-Archive -LiteralPath $env.SIDECAR_ZIP -DestinationPath $env.SIDECAR_UNPACK'],{env:{...process.env,SIDECAR_ZIP:zip,SIDECAR_UNPACK:unpack}});
+    run('powershell.exe',['-NoProfile','-NonInteractive','-Command','Expand-Archive -LiteralPath $env:SIDECAR_ZIP -DestinationPath $env:SIDECAR_UNPACK'],{env:{...process.env,SIDECAR_ZIP:zip,SIDECAR_UNPACK:unpack}});
     check(path.join(unpack,metadata.productName+'.exe'),path.join(release,'zip-check'));
     checks.push('zip-extraction-native-flow');
     const installed=path.join(temporary,'installed');

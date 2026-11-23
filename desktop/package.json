@@ -3,6 +3,7 @@
   "productName": "Sidecar Toy",
   "version": "0.3.2",
   "description": "Sidecar desktop chat workspace",
+  "homepage": "https://github.com/ahuidffwkjf/private-agent-sidecar",
   "author": "Private Agent Sidecar contributors",
   "private": true,
   "engines": {"node": ">=22.12.0"},
@@ -77,7 +78,7 @@
         "deb"
       ],
       "category": "Network",
-      "maintainer": "Private Agent Sidecar contributors"
+      "maintainer": "Private Agent Sidecar contributors <ahuidffwkjf@users.noreply.github.com>"
     }
   }
 }
