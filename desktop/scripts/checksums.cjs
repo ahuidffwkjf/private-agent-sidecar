@@ -1,9 +1,10 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
-const root=path.resolve(__dirname,'../release');
+const root=process.env.SIDECAR_DESKTOP_RELEASE?path.resolve(process.env.SIDECAR_DESKTOP_RELEASE):path.resolve(__dirname,'../release');
 async function main(){
-  const files=fs.readdirSync(root).filter(name=>/\.(dmg|zip|exe|AppImage|deb)$/.test(name)).sort();
+  const {version}=require('../package.json');
+  const files=fs.readdirSync(root).filter(name=>name.startsWith(`Sidecar-Toy-${version}-`)&&/\.(dmg|zip|exe|AppImage|deb)$/.test(name)).sort();
   if(!files.length)throw new Error('No desktop installers found');
   const lines=[];
   for(const name of files){

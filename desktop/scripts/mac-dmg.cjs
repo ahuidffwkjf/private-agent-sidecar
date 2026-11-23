@@ -5,16 +5,17 @@ const os=require('node:os');
 const {spawnSync}=require('node:child_process');
 if(process.platform==='darwin'){
   const root=path.resolve(__dirname,'..');
-  const {version}=require('../package.json');
+  const {version,productName}=require('../package.json');
   const folder=process.arch==='arm64'?'mac-arm64':'mac';
-  const source=path.join(root,'release',folder,'Sidecar.app');
-  const destination=path.join(root,'release',`Sidecar-${version}-mac-${process.arch}.dmg`);
+  const release=process.env.SIDECAR_DESKTOP_RELEASE?path.resolve(process.env.SIDECAR_DESKTOP_RELEASE):path.join(root,'release');
+  const source=path.join(release,folder,productName+'.app');
+  const destination=path.join(release,`Sidecar-Toy-${version}-mac-${process.arch}.dmg`);
   if(!fs.existsSync(source))throw new Error('Build the current architecture application before creating its DMG');
   const staging=fs.mkdtempSync(path.join(os.tmpdir(),'sidecar-dmg-'));
   try{
-    fs.cpSync(source,path.join(staging,'Sidecar.app'),{recursive:true,dereference:false,verbatimSymlinks:true});
+    fs.cpSync(source,path.join(staging,productName+'.app'),{recursive:true,dereference:false,verbatimSymlinks:true});
     fs.symlinkSync('/Applications',path.join(staging,'Applications'));
-    const result=spawnSync('/usr/bin/hdiutil',['create','-volname','Sidecar','-srcfolder',staging,'-format','UDZO','-ov',destination],{stdio:'inherit',timeout:180000});
+    const result=spawnSync('/usr/bin/hdiutil',['create','-volname',productName,'-srcfolder',staging,'-format','UDZO','-ov',destination],{stdio:'inherit',timeout:180000});
     if(result.error)throw result.error;
     if(result.status!==0)throw new Error(`hdiutil failed (${result.status})`);
     const verify=spawnSync('/usr/bin/hdiutil',['verify',destination],{stdio:'inherit',timeout:60000});

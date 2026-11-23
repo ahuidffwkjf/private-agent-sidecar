@@ -75,3 +75,20 @@ npm run dist
 - Linux ARM、Windows ARM 暂未列为自动构建目标。
 - 桌面版读取随当前后端分发的 Skill 目录，不固定条目数量，也不因为打包就增加任何执行能力。具体能力与执行边界以对应版本的后端与 Skill 说明为准。
 - 真实 DeepSeek/DSH 训练仍依赖外部 runtime、凭据和模型，本包不包含 PyTorch/模型权重。
+# Toy Native Preview 0.3.1
+
+当前默认本地模式是四用户 Toy 演示，内置 Relay/研究采集与冻结 Python 后端。
+面向使用者的双击启动说明见 `../docs/TOY_APP_GUIDE.md`。数据目录为 `Sidecar Toy`，
+不同于下面早期单节点版的 `Sidecar` 目录。包名与 application ID 已隔离。
+macOS 构建默认 ad-hoc 签名，未获 Developer ID 公证；不承诺首次启动无系统提示。
+
+开发者可将输出移到非 Desktop 临时目录，避免 Finder 元数据重新附着导致 codesign 失败：
+
+```sh
+npm run backend:build
+node node_modules/electron-builder/out/cli/cli.js --dir --publish never --config.directories.output=/private/tmp/sidecar-toy-native-release
+SIDECAR_DESKTOP_RELEASE=/private/tmp/sidecar-toy-native-release npm run smoke
+```
+
+以下为原桌面框架的安装与平台构建说明；用户操作以 Toy 应用手册为准。
+

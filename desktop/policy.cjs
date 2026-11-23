@@ -16,4 +16,23 @@ function backendCommand({packaged,resources,root,platform=process.platform}){
   if(packaged)return {file:path.join(resources,'backend',platform==='win32'?'SidecarBackend.exe':'SidecarBackend'),args:[]};
   return {file:path.join(root,'desktop','.venv',platform==='win32'?'Scripts/python.exe':'bin/python'),args:['-m','agent_sidecar.desktop']};
 }
-module.exports={validateConnection,trustedNavigation,backendCommand};
+function validateReady(value){
+  function localOrigin(raw){
+    const url=new URL(raw);
+    if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.username||url.password||url.pathname!=='/'||url.search||url.hash||!url.port)throw new Error('服务启动地址无效');
+    return url.origin;
+  }
+  const origin=localOrigin(value.url);
+  const users=value.users||[];
+  if(!Array.isArray(users)||users.length>4)throw new Error('演示用户列表无效');
+  const names=new Set(),origins=new Set();
+  const parsed=users.map(user=>{
+    if(!['Alice','Bob','Carol','Dave'].includes(user.name)||names.has(user.name))throw new Error('演示用户身份无效');
+    const url=localOrigin(user.url);names.add(user.name);
+    if(origins.has(url))throw new Error('演示用户地址重复');
+    origins.add(url);return {name:user.name,url};
+  });
+  if(parsed.length&&(!origins.has(origin)||parsed.length!==4))throw new Error('演示用户列表不完整');
+  return {origin,users:parsed};
+}
+module.exports={validateConnection,trustedNavigation,backendCommand,validateReady};

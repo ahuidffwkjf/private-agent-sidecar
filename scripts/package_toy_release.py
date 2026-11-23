@@ -15,7 +15,7 @@ from sidecar_setup import ROOT, source_files as installer_files
 RELEASE_ID = "toy-v0.3.0-20261123"
 PREFIX = "sidecar-toy/"
 DOCS = (
-    "TOY_USER_GUIDE.md", "PROJECT_BOARD_SPEC.md", "PROJECT_INVITATION_SPEC.md",
+    "TOY_USER_GUIDE.md", "TOY_APP_GUIDE.md", "PROJECT_BOARD_SPEC.md", "PROJECT_INVITATION_SPEC.md",
     "NODE_TRUST_SPEC.md", "PROJECT_TRUST_SPEC.md", "BROADCAST_SPEC.md",
     "CHAT_UI.md", "HARNESS_SPEC.md", "COLLABORATION_SPEC.md",
 )

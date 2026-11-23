@@ -15,6 +15,26 @@
 
 此界面不是腾讯微信客户端，不登录或控制真实微信账号。项目群聊沿用签名项目留言板与成员邀请，不等同微信个人群；公共动态沿用 Relay 公开广播，不实现朋友圈好友可见性或点赞评论。
 
+## 退出项目
+
+- 普通项目讨论：在聊天右上角“详情”中选择“退出项目”；发起人显示“结束并退出项目”。必须再次确认，取消或接口失败不会移除会话或丢失草稿。
+- 操作沿用 `POST /v1/projects/<project_id>/close`。确认成功后返回公共广场，并从活跃会话列表移除该项目；本机历史记录保留，项目临时信任撤销，单独建立的全局好友信任不变。
+- 普通成员的操作只关闭本机项目视图，不通知发起人移除成员，也不修改远端签名成员清单。确认框明确显示这一边界，不能把它解释为已完成全网成员退群或密钥轮换。
+- 发起人关闭时，按现有后端流程尝试通知成员；界面不把本机关闭成功宣称为所有离线节点已经同步完成。
+- 任务关联的项目继续跳转到任务详情：成员使用“退出任务”，负责人按现有“取消任务”或“结束任务”流程处理，不以普通项目关闭接口绕过子任务与成员权限检查。
+
+此改动仅增加已有生命周期接口的界面入口与回归验证，不改变传输、信任协议或拓扑，Benchmark 不适用。下一项生命周期工作是独立设计并验证普通项目的签名成员退出通知与 Owner 清单确认，而不是把本机退出误报为远端成员已撤销。
+
+### 2026-11-23 退出入口验证
+
+- 本次修改：`agent_sidecar/web/app.js`、`tests/test_direct_routing.py`、`scripts/check_chat_ui.mjs`、本文件；不修改后端协议，不操作用户已有项目。
+- 修改前：`tests.test_chat_ui` 与 `tests.test_sidecar.ProjectScopedTrustTests` 共 7 项通过；增加本机退出 API 回归后，定向测试 8 项通过。
+- `.venv/bin/python -m unittest discover -s tests -v`：163 项通过，日志 `runs/project-exit-full-tests.log`。
+- `node --check agent_sidecar/web/app.js`、`node --check scripts/check_chat_ui.mjs`、`git diff --check` 通过。
+- `PLAYWRIGHT_CHANNEL=chrome NODE_PATH=<bundled node_modules> node scripts/check_chat_ui.mjs http://127.0.0.1:63218/ui runs/project-exit-ui`：13 组通过，无页面脚本错误。真实隔离节点验证发起人关闭；独立浏览器模拟普通成员的取消、失败、重试、其他会话草稿及好友保留。
+- 已检查 1440px、390px、320px 的确认框截图，未发现横向溢出。结果及截图：`runs/project-exit-ui/`。
+- 外部阻塞：无本次界面交付阻塞；未重新打包已安装的桌面应用。源码服务重新加载页面即可取得新静态资源，旧安装包需要重新构建后更新。
+
 ## 本次文件
 
 - `agent_sidecar/web/`：HTML、CSS、交互代码、本地 Lucide 图标与许可证。

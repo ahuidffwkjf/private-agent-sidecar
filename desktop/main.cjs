@@ -4,15 +4,17 @@ const {randomBytes}=require('node:crypto');
 const fs=require('node:fs');
 const path=require('node:path');
 const readline=require('node:readline');
-const {validateConnection,trustedNavigation,backendCommand}=require('./policy.cjs');
+const {validateConnection,trustedNavigation,backendCommand,validateReady}=require('./policy.cjs');
 
-app.setName('Sidecar');
+app.setName('Sidecar Toy');
+app.setPath('userData',path.join(app.getPath('appData'),'Sidecar Toy'));
 if(process.env.SIDECAR_SMOKE_DATA_DIR){
   if(!path.isAbsolute(process.env.SIDECAR_SMOKE_DATA_DIR))throw new Error('Smoke data directory must be absolute');
   app.setPath('userData',process.env.SIDECAR_SMOKE_DATA_DIR);
 }
 const root=path.resolve(__dirname,'..');
 let window,settingsWindow,backend,config={mode:'local'},origin='',quitting=false,backendReady=false;
+let localUsers=[],selectedUser='Alice';
 const settingsFile=()=>path.join(app.getPath('userData'),'connection.json');
 const settingsURL=require('node:url').pathToFileURL(path.join(__dirname,'settings.html')).href;
 
@@ -36,12 +38,20 @@ function settingsSender(event){
 function createMenu(){
   const mac=process.platform==='darwin';
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    ...(mac?[{label:'Sidecar',submenu:[{role:'about'},{type:'separator'},{label:'连接设置…',accelerator:'CmdOrCtrl+,',click:connectionSettings},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}]:[]),
+    ...(mac?[{label:'Sidecar Toy',submenu:[{role:'about'},{type:'separator'},{label:'连接设置…',accelerator:'CmdOrCtrl+,',click:connectionSettings},{type:'separator'},{role:'hide'},{role:'hideOthers'},{role:'unhide'},{type:'separator'},{role:'quit'}]}]:[]),
     {label:'文件',submenu:[{label:'连接设置…',accelerator:mac?undefined:'Ctrl+,',click:connectionSettings},{label:'打开数据目录',click:()=>shell.openPath(app.getPath('userData'))},{type:'separator'},mac?{role:'close'}:{role:'quit'}]},
+    ...(localUsers.length?[{label:'演示用户',submenu:localUsers.map((user,index)=>({label:user.name,type:'radio',checked:user.name===selectedUser,accelerator:`CmdOrCtrl+${index+1}`,click:()=>switchUser(user)}))}]:[]),
     {label:'编辑',submenu:[{role:'undo'},{role:'redo'},{type:'separator'},{role:'cut'},{role:'copy'},{role:'paste'},{role:'selectAll'}]},
     {label:'视图',submenu:[{label:'重新加载',accelerator:'CmdOrCtrl+R',click:()=>window?.reload()},{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]},
     {label:'窗口',submenu:[{role:'minimize'},{role:'zoom'},...(mac?[{role:'front'}]:[])]}
   ]));
+}
+async function switchUser(user){
+  if(!window||!localUsers.some(u=>u.name===user.name&&u.url===user.url))return;
+  selectedUser=user.name;origin=user.url;createMenu();
+  window.setTitle('Sidecar Toy · '+selectedUser);
+  try{await window.loadURL(origin+'/ui?desktop=1&toy=1');}
+  catch{dialog.showErrorBox('用户切换失败','本地演示服务未响应，请退出应用后重新启动。');}
 }
 async function stopBackend(){
   const child=backend;backend=null;backendReady=false;
@@ -70,42 +80,45 @@ async function startBackend(){
       clearTimeout(timeout);lines.close();
       try{
         if(line.length>4096)throw new Error('服务启动响应过长');
-        const value=JSON.parse(line),url=new URL(value.url);
-        if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.username||url.password||url.pathname!=='/'||url.search||url.hash||!url.port)throw new Error('服务启动地址无效');
-        child.removeListener('exit',fail);resolve(url.origin);
+        const value=validateReady(JSON.parse(line));
+        child.removeListener('exit',fail);resolve(value);
       }catch(error){reject(error);}
     });
     // Session token is private IPC data; never command-line arguments or query strings.
     child.stdin.on('error',()=>{});
-    child.stdin.write(JSON.stringify({token,data_dir:path.join(app.getPath('userData'),'workspace')})+'\n');
+    child.stdin.write(JSON.stringify({token,data_dir:path.join(app.getPath('userData'),'workspace'),mode:'toy'})+'\n');
   });
   backendReady=true;
   child.once('exit',()=>{
     if(!quitting&&backendReady){backendReady=false;dialog.showMessageBox(window,{type:'error',message:'本机服务已停止',detail:'已有数据仍保存在本机。请退出并重新启动应用。'});}
   });
-  return {origin:ready,token};
+  return {...ready,token};
 }
 async function start(){
   try {if(fs.existsSync(settingsFile()))config=validateConnection(JSON.parse(fs.readFileSync(settingsFile(),'utf8')));}
   catch {config={mode:'local'};await dialog.showMessageBox({type:'warning',message:'连接设置无效，已切换到本机工作区。'});}
   const isolated=session.fromPartition(`sidecar-${randomBytes(12).toString('hex')}`);
+  if(config.mode==='local')await isolated.setProxy({mode:'direct'});
   isolated.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
   isolated.setPermissionCheckHandler(()=>false);
-  window=new BrowserWindow({width:1180,height:800,minWidth:920,minHeight:620,title:'Sidecar',backgroundColor:'#f5f5f5',
+  window=new BrowserWindow({width:1180,height:800,minWidth:920,minHeight:620,title:'Sidecar Toy',backgroundColor:'#f5f5f5',
     icon:path.join(__dirname,'assets/icon.png'),show:false,autoHideMenuBar:process.platform!=='darwin',
     webPreferences:{session:isolated,nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,allowRunningInsecureContent:false}});
   createMenu();window.once('ready-to-show',()=>window.show());
   window.on('closed',()=>{window=null;});
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  window.webContents.on('page-title-updated',event=>{event.preventDefault();window?.setTitle('Sidecar Toy'+(localUsers.length?' · '+selectedUser:''));});
   for(const eventName of ['will-navigate','will-redirect'])window.webContents.on(eventName,(event,url)=>{if(!trustedNavigation(url,origin))event.preventDefault();});
   window.webContents.on('will-attach-webview',event=>event.preventDefault());
   await window.loadFile(path.join(__dirname,'assets/loading.html'));window.show();
   try {
     if(config.mode==='local'){
       const result=await startBackend();origin=result.origin;
-      await isolated.cookies.set({url:origin,name:'sidecar_desktop_session',value:result.token,httpOnly:true,sameSite:'strict',path:'/'});
+      localUsers=result.users;
+      for(const url of localUsers.length?localUsers.map(u=>u.url):[origin])await isolated.cookies.set({url,name:'sidecar_desktop_session',value:result.token,httpOnly:true,sameSite:'strict',path:'/'});
+      createMenu();
     }else origin=config.url;
-    await window.loadURL(origin+'/ui?desktop=1');
+    await window.loadURL(origin+(localUsers.length?'/ui?desktop=1&toy=1':'/ui?desktop=1'));
   } catch(error){
     await stopBackend();
     if(quitting)return;

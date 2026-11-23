@@ -78,6 +78,14 @@ class DesktopRuntime:
     def __init__(self, data_dir: Path, token: str):
         if not isinstance(token, str) or len(token) < 32 or not token.isascii() or not token.isalnum():
             raise ValueError('desktop session must be an ASCII alphanumeric token of at least 32 characters')
+        # Owned services must never send local session/content requests through
+        # a system proxy. Preserve existing bypasses and leave external routing.
+        bypass = os.environ.get('no_proxy', os.environ.get('NO_PROXY', ''))
+        values = [value for value in bypass.split(',') if value]
+        for host in ('127.0.0.1', 'localhost', '::1'):
+            if host not in values:
+                values.append(host)
+        os.environ['no_proxy'] = os.environ['NO_PROXY'] = ','.join(values)
         self.root = data_dir
         self.root.mkdir(mode=0o700, parents=True, exist_ok=True)
         self.token = token
@@ -153,10 +161,18 @@ def main():
         stopped.set()
 
     with contextlib.redirect_stdout(sys.stderr):
-        runtime = DesktopRuntime(root, config['token'])
+        if config.get('mode') == 'toy':
+            from .toy_desktop import ToyDesktopRuntime
+            runtime = ToyDesktopRuntime(root, config['token'])
+        else:
+            runtime = DesktopRuntime(root, config['token'])
         try:
             url = runtime.start()
-            output.write(json.dumps({'url': url, 'pid': os.getpid()}) + '\n')
+            ready = {'url': url, 'pid': os.getpid()}
+            if config.get('mode') == 'toy':
+                ready['users'] = runtime.users
+                ready['mode'] = 'toy'
+            output.write(json.dumps(ready) + '\n')
             output.flush()
             threading.Thread(target=monitor_parent, daemon=True).start()
             stopped.wait()

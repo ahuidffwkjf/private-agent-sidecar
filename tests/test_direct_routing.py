@@ -237,6 +237,34 @@ class DirectRoutingTests(unittest.TestCase):
         self.assertNotIn(self.bob.identity.agent_id, self.alice.store.trusted_ids())
         self.assertNotIn(self.alice.identity.agent_id, self.bob.store.trusted_ids())
 
+    def test_member_exit_closes_only_local_view_and_preserves_history_and_global_trust(self):
+        project_id = "project-local-exit"
+        self.alice.trust(self.bob.identity.agent_id, self.bob.identity.public().signing_key)
+        self.bob.trust(self.alice.identity.agent_id, self.alice.identity.public().signing_key)
+        self.alice.create_project("Exit", project_id)
+        self.bob.create_project("Exit", project_id, owner_id=self.alice.identity.agent_id)
+        self.alice.trust_for_project(project_id, self.bob.identity.agent_id)
+        self.bob.post_project_board_event(project_id, "post", {"text": "retained after exit"})
+        before = self.bob.store.project_board_events(project_id)
+        base = f"http://127.0.0.1:{self.bob_server.server_port}"
+
+        def close():
+            request = Request(f"{base}/v1/projects/{project_id}/close", data=b"{}",
+                              headers={"Content-Type": "application/json"}, method="POST")
+            with urlopen(request) as response:
+                return json.load(response)
+
+        closed = close()
+        self.assertEqual(closed["status"], "closed")
+        self.assertEqual(close()["closed_at"], closed["closed_at"])
+        self.assertEqual(self.alice.store.project(project_id)["status"], "active")
+        self.assertIsNotNone(self.alice.store.project_member(project_id, self.bob.identity.agent_id))
+        self.assertEqual(self.bob.store.project_board_events(project_id), before)
+        self.assertIn(self.alice.identity.agent_id, self.bob.store.trusted_ids())
+        self.assertIsNone(self.bob.trusted_peer(self.alice.identity.agent_id, project_id))
+        with self.assertRaisesRegex(ValueError, "closed|unknown"):
+            self.bob.post_project_board_event(project_id, "post", {"text": "after exit"})
+
     def test_rejected_project_invitation_never_adds_member(self):
         project_id = "project-invitation-reject"
         self.alice.create_project("Invitation Reject", project_id)

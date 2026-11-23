@@ -73,20 +73,46 @@ try {
     assert.equal(await page.locator('.list-pane').isVisible(),true);
   }
   ok('mobile-320-390-layout-and-back');
+  await page.setViewportSize({width:1440,height:940});
+  await page.getByRole('button',{name:new RegExp(projectName)}).click();
+  await page.locator('#detail-action').click();
+  await page.getByRole('button',{name:'结束并退出项目',exact:true}).click();
+  await page.locator('#dialog-title').getByText('结束并退出项目',{exact:true}).waitFor();
+  await page.screenshot({path:output+'/owner-exit-confirm.png'});
+  await page.locator('#cancel-dialog').click();
+  const beforeClose=await page.evaluate(async()=>await(await fetch('/v1/projects')).json());
+  assert.equal(beforeClose.projects.find(p=>p.name===projectName).status,'active');
+  await page.locator('#detail-action').click();
+  await page.locator('#exit-project').click();
+  await page.locator('#confirm-dialog').click();
+  await page.locator('#dialog').waitFor({state:'hidden'});
+  await page.locator('#detail-title').getByText('公共广场',{exact:true}).waitFor();
+  assert.equal(await page.getByRole('button',{name:new RegExp(projectName)}).count(),0);
+  const afterClose=await page.evaluate(async()=>await(await fetch('/v1/projects')).json());
+  assert.equal(afterClose.projects.find(p=>p.name===projectName).status,'closed');
+  ok('owner-project-exit-confirmation-and-real-persistent-close');
   await context.close();
 
   // Adversarial states are injected only in this test context, never into the user's node.
   const fixture=await browser.newContext({viewport:{width:1280,height:860}});
   const peer={agent_id:'agent:remote',display_name:'测试联系人',relationship_state:'mutual',outgoing_trust:true,direct:{endpoint:'https://example.invalid'},signing_key:'test-public-key'};
   const pending={agent_id:'agent:pending',display_name:'<img src=x onerror=alert(1)>',relationship_state:'pending',direct:{},signing_key:'pending-key'};
-  let failSend=false, delayPrivate=false, queuedSend=false;
+  let failSend=false, delayPrivate=false, queuedSend=false, failExit=true;
+  let fixtureProjects=[];
   const calls=[];
   await fixture.route('**/v1/**',async route=>{
     const url=new URL(route.request().url()),path=url.pathname;
     let data;
     if(path==='/v1/identity')data={agent_id:'agent:self'};
     if(path==='/v1/peers/candidates')data={peers:[peer,pending]};
-    if(path==='/v1/projects')data={projects:[]};
+    if(path==='/v1/projects')data={projects:fixtureProjects};
+    if(path==='/v1/projects/project-exit-fixture/board')data={events:[]};
+    if(path==='/v1/projects/project-exit-fixture/close'){
+      calls.push({action:'project-close',...route.request().postDataJSON()});
+      if(failExit){await route.fulfill({status:503,json:{error:'项目服务暂不可用'}});return;}
+      fixtureProjects=fixtureProjects.map(project=>({...project,status:'closed'}));
+      data=fixtureProjects[0];
+    }
     if(path==='/v1/peers/trust-notifications')data={notifications:[]};
     if(path==='/v1/project-invitations')data={incoming:[]};
     if(path==='/v1/private-messages'){
@@ -135,6 +161,46 @@ try {
   await p.locator('#dialog').waitFor({state:'hidden'});
   assert.equal(calls.at(-1).expected_signing_key,'pending-key');
   ok('contact-xss-escaping-and-explicit-fingerprint-confirmation');
+
+  fixtureProjects=[{project_id:'project-exit-fixture',name:'成员退出验收',owner_id:'agent:owner',status:'active',project_members:[{agent_id:'agent:self'},{agent_id:'agent:owner'}]}];
+  await p.locator('.nav-button[data-view="chats"]').click();
+  await p.locator('#message').fill('公共会话草稿保持不变');
+  await p.locator('#refresh').click();
+  await p.locator('[data-select="project:project-exit-fixture"]').click();
+  await p.locator('#message').fill('退出失败时保留的草稿');
+  await p.locator('#detail-action').click();
+  assert.equal(await p.locator('#invite-member').count(),0);
+  assert.equal(await p.getByRole('button',{name:'结束并退出项目',exact:true}).count(),0);
+  await p.getByRole('button',{name:'退出项目',exact:true}).click();
+  assert.match(await p.locator('#dialog-body').innerText(),/不会修改发起人的成员名单/);
+  const beforeExit=calls.length;
+  await p.locator('#cancel-dialog').click();
+  assert.equal(calls.length,beforeExit);
+  assert.equal(await p.locator('#message').inputValue(),'退出失败时保留的草稿');
+  await p.locator('#detail-action').click();
+  await p.locator('#exit-project').click();
+  await p.locator('#confirm-dialog').click();
+  await p.locator('#dialog-error').getByText('项目服务暂不可用',{exact:true}).waitFor();
+  assert.equal(await p.locator('#confirm-dialog').isEnabled(),true);
+  assert.equal(await p.locator('[data-select="project:project-exit-fixture"]').count(),1);
+  assert.equal(await p.locator('#message').inputValue(),'退出失败时保留的草稿');
+  ok('member-exit-cancel-and-failure-retain-conversation-and-draft');
+  for(const width of [1440,390,320]){
+    await p.setViewportSize({width,height:844});
+    assert.equal(await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+    assert.equal(await p.locator('#dialog').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+    await p.screenshot({path:`${output}/member-exit-confirm-${width}.png`});
+  }
+  failExit=false;
+  await p.locator('#confirm-dialog').click();
+  await p.locator('#dialog').waitFor({state:'hidden'});
+  assert.equal(await p.locator('[data-select="project:project-exit-fixture"]').count(),0);
+  assert.equal(await p.locator('#message').inputValue(),'公共会话草稿保持不变');
+  await p.setViewportSize({width:1280,height:860});
+  await p.locator('#refresh').click();
+  assert.equal(await p.locator('[data-select="project:project-exit-fixture"]').count(),0);
+  assert.equal(await p.locator('[data-select="private:agent:remote"]').count(),1);
+  ok('member-local-exit-returns-to-chat-preserves-other-drafts-and-trust');
   assert.deepEqual(errors,[]);
   await writeFile(output+'/summary.json',JSON.stringify({checks,errors},null,2));
   console.log(JSON.stringify({checks,errors,output},null,2));

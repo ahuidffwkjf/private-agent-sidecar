@@ -11,6 +11,7 @@
     revision:0, detailRead:0, refreshBusy:false, sending:false, lastContent:'', catalogLoaded:false};
   const titles = {chats:'聊天', contacts:'通讯录', discover:'发现', skills:'Skills', me:'我'};
   const toy=window.SidecarToy;
+  let desktopToyStarted=false;
   toy?.init({api,esc,icon,heading,setContent,modal,toast,peerName:id=>peerName(id),projects:()=>state.projects,
     selectTask:id=>{saveDraft();state.view='discover';state.selected=id;state.revision++;$('#view-title').textContent='发现';document.querySelectorAll('.nav-button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view==='discover'));$('#app').classList.add('detail-open');renderList();renderDetail(true);},
     openProject:id=>{chooseView('chats');select('project:'+id);}});
@@ -236,6 +237,9 @@
       if(notifications.status==='fulfilled')state.notifications=notifications.value.notifications||[];
       if(invitations.status==='fulfilled')state.invitations=invitations.value.incoming||[];
       try { await toy?.refresh(); } catch(e) { error('任务同步失败：'+e.message); }
+      if(!desktopToyStarted&&new URLSearchParams(location.search).get('toy')==='1'&&toy?.enabled()){
+        desktopToyStarted=true;chooseView('discover');select('tasks');
+      }
       const offline=results.some(r=>r.status==='rejected');
       $('.connection').classList.toggle('online',!offline);$('#connection-label').textContent=offline?'部分服务不可用':'Sidecar 已连接';
       if(offline)error('部分服务暂时不可用，当前保留最近一次数据。');
@@ -291,10 +295,28 @@
       const p=c.project;
       const task=toy?.tasks().find(t=>t.project_id===p.project_id);
       if(task){toy.show('task:'+task.task_id);return;}
-      modal('讨论详情',`${dl([['名称',p.name],['项目 ID',p.project_id],['Owner',p.owner_id],['当前成员',(p.project_members||[]).map(m=>peerName(m.agent_id))],['状态',p.status]])}<div class="page-actions"><button class="secondary" id="sync-board">同步消息</button>${p.owner_id===state.identity?.agent_id?'<button class="secondary" id="invite-member">邀请成员</button>':''}<a class="secondary" href="/ui/admin">管理项目</a></div><p id="details-status" role="status"></p>`);
+      const own=p.owner_id===state.identity?.agent_id;
+      modal('讨论详情',`${dl([['名称',p.name],['项目 ID',p.project_id],['Owner',p.owner_id],['当前成员',(p.project_members||[]).map(m=>peerName(m.agent_id))],['状态',p.status]])}<div class="page-actions"><button class="secondary" id="sync-board">同步消息</button>${own?'<button class="secondary" id="invite-member">邀请成员</button>':''}<a class="secondary" href="/ui/admin">管理项目</a><button class="secondary danger" id="exit-project">${icon(own?'circle-stop':'log-out')} ${own?'结束并退出项目':'退出项目'}</button></div><p id="details-status" role="status"></p>`);
       $('#sync-board').onclick=async()=>{const button=$('#sync-board');button.disabled=true;try{await api(`/v1/projects/${enc(p.project_id)}/board/sync`,{});$('#details-status').textContent='同步已完成';await renderDetail();}catch(e){$('#details-status').textContent=e.message;}finally{button.disabled=false;}};
       if($('#invite-member'))$('#invite-member').onclick=()=>inviteMember(p);
+      $('#exit-project').onclick=()=>exitProject(p);
     } else modal(c.name,dl([['通信路径',c.kind==='public'?'Relay 公开广播':'Sidecar 直连，不回退 Relay'],['可见范围',c.kind==='public'?'Relay 上所有可读取该频道的节点':'会话参与双方'],['地址',c.peer?.direct?.endpoint||'公共频道']]));
+  }
+  function exitProject(project) {
+    const own=project.owner_id===state.identity?.agent_id;
+    const title=own?'结束并退出项目':'退出项目';
+    const description=own
+      ?`结束「${project.name}」并退出讨论？本机将停止项目通信、撤销项目临时信任，并尝试通知其他成员。历史记录会保留，单独建立的好友信任不受影响。`
+      :`退出「${project.name}」？此操作只关闭你在本机的项目会话并撤销本机项目临时信任，不会解散其他成员的项目，也不会修改发起人的成员名单。历史记录和单独建立的好友信任会保留。`;
+    confirmAction(title,description,async()=>{
+      const result=await api(`/v1/projects/${enc(project.project_id)}/close`,{});
+      if(result.status!=='closed')throw new Error('项目尚未关闭，请重试。');
+      state.projects=state.projects.map(p=>p.project_id===project.project_id?{...p,...result}:p);
+      chooseView('chats');
+      state.drafts.delete(`project:${project.project_id}`);
+      state.previews.delete(`project:${project.project_id}`);
+      toast(own?'项目已结束并退出':'已退出本机项目会话');
+    });
   }
   function inviteMember(project) {
     const members=new Set((project.project_members||[]).map(m=>m.agent_id));

@@ -1,7 +1,7 @@
 {
-  "name": "sidecar-desktop",
-  "productName": "Sidecar",
-  "version": "0.2.0",
+  "name": "sidecar-toy-desktop",
+  "productName": "Sidecar Toy",
+  "version": "0.3.1",
   "description": "Sidecar desktop chat workspace",
   "author": "Private Agent Sidecar contributors",
   "private": true,
@@ -11,7 +11,7 @@
     "setup": "node scripts/python.cjs setup",
     "start": "node scripts/python.cjs setup && electron .",
     "test": "node --test tests/policy.test.cjs",
-    "smoke": "node scripts/smoke.cjs",
+    "smoke": "node scripts/toy-smoke.cjs",
     "backend:build": "node scripts/python.cjs build",
     "runtime:install": "node node_modules/electron/install.js",
     "pack": "npm run backend:build && npm run runtime:install && electron-builder --dir --publish never",
@@ -23,7 +23,8 @@
     "playwright-core": "1.64.1"
   },
   "build": {
-    "appId": "org.privateagentsidecar.desktop",
+    "appId": "org.privateagentsidecar.toy",
+    "afterPack": "scripts/before-sign.cjs",
     "asar": true,
     "electronDist": "node_modules/electron/dist",
     "icon": "assets/icon.png",
@@ -49,13 +50,14 @@
         ]
       }
     ],
-    "artifactName": "Sidecar-${version}-${os}-${arch}.${ext}",
+    "artifactName": "Sidecar-Toy-${version}-${os}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.social-networking",
       "target": [
         "zip"
       ],
-      "identity": null
+      "identity": "-",
+      "notarize": false
     },
     "win": {
       "target": [

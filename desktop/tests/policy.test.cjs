@@ -1,6 +1,6 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {validateConnection,trustedNavigation,backendCommand}=require('../policy.cjs');
+const {validateConnection,trustedNavigation,backendCommand,validateReady}=require('../policy.cjs');
 test('remote connections require TLS except exact loopback hosts',()=>{
   assert.deepEqual(validateConnection({mode:'local'}),{mode:'local'});
   assert.equal(validateConnection({mode:'remote',url:'https://example.com/ui'}).url,'https://example.com');
@@ -20,4 +20,12 @@ test('platform specific backend commands are argument arrays, never shell string
     assert.deepEqual(dev.args,['-m','agent_sidecar.desktop']);
     assert(dev.file.endsWith(platform==='win32'?'python.exe':'python'));
   }
+});
+test('toy readiness only accepts four unique loopback users',()=>{
+  const users=['Alice','Bob','Carol','Dave'].map((name,i)=>({name,url:`http://127.0.0.1:${9000+i}`}));
+  assert.equal(validateReady({url:users[0].url,users}).users.length,4);
+  assert.throws(()=>validateReady({url:users[0].url,users:users.slice(0,2)}));
+  assert.throws(()=>validateReady({url:users[0].url,users:[users[0],users[0],users[2],users[3]]}));
+  assert.throws(()=>validateReady({url:'https://other.example',users}));
+  assert.throws(()=>validateReady({url:users[0].url,users:[...users.slice(0,3),{name:'Dave',url:'http://remote.example:9004'}]}));
 });
