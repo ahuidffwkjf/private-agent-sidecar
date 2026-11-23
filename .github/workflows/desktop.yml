@@ -115,6 +115,7 @@ jobs:
             desktop/release/builder-debug.yml
             desktop/backend-build/backend/warn-backend.txt
             desktop/release/**/*smoke*.json
+            desktop/release/**/*smoke*.png
   publish:
     name: Publish only after all four native validations
     if: startsWith(github.ref, 'refs/tags/desktop-v')

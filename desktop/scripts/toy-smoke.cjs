@@ -107,6 +107,14 @@ async function run(){
     assert.deepEqual(errors,[]);
     const result={platform:process.platform,arch:process.arch,version:metadata.version,checks,errors,status:'passed',elapsed_ms:Math.round(performance.now()-started),config:{users:4,active_test_users:2,relay:'owned-loopback',collector:'owned-loopback',backend:'single-frozen-process',scenario:'publish-approve-group-restart-send'},summary:'explicit demo, no real model call'};
     fs.writeFileSync(path.join(release,'toy-desktop-smoke.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));
+  }catch(error){
+    if(application){
+      for(const [index,page] of application.windows().entries()){
+        console.error('Failure window',index,page.url(),await page.locator('body').innerText().catch(()=>'(unavailable)'));
+        await page.screenshot({path:path.join(release,`failed-smoke-${index}.png`)}).catch(()=>{});
+      }
+    }
+    throw error;
   }finally{
     if(application)await application.close();
     fs.rmSync(data,{recursive:true,force:true});

@@ -85,9 +85,15 @@ class DesktopProcessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             token = secrets.token_hex(32)
             data_dir = str(Path(temporary) / '桌面工作区')
-            process = subprocess.Popen([sys.executable, '-m', 'agent_sidecar.desktop'], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'ascii'})
+            entry = 'import faulthandler; faulthandler.dump_traceback_later(10, repeat=True); from agent_sidecar.desktop import main; main()'
+            process = subprocess.Popen([sys.executable, '-c', entry], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding='utf-8', env={**os.environ, 'PYTHONIOENCODING': 'ascii'})
             try:
-                stdout, stderr = process.communicate(json.dumps({'token': token, 'data_dir': data_dir}, ensure_ascii=False) + '\n', timeout=30)
+                try:
+                    stdout, stderr = process.communicate(json.dumps({'token': token, 'data_dir': data_dir}, ensure_ascii=False) + '\n', timeout=30)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    stdout, stderr = process.communicate(timeout=5)
+                    self.fail('Desktop startup exceeded 30 seconds:\n' + stderr.replace(token, '[redacted]'))
                 self.assertEqual(process.returncode, 0, stderr)
                 self.assertNotIn(token, stdout + stderr)
                 self.assertEqual(len(stdout.strip().splitlines()), 1)
