@@ -60,7 +60,9 @@ jobs:
       - run: python -m unittest discover -s tests -p test_desktop.py -v
       - run: python -m unittest discover -s tests -p test_toy_desktop.py -v
       - run: python -m unittest discover -s tests -p 'test_online*.py' -v
-      - run: python -m unittest discover -s tests -p test_ecs_relay.py -v
+      - name: Validate Linux ECS server deployment
+        if: runner.os == 'Linux'
+        run: python -m unittest discover -s tests -p test_ecs_relay.py -v
       - run: npm run dist
         working-directory: desktop
         env:

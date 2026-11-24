@@ -11,6 +11,7 @@ ecs = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ecs)
 
 
+@unittest.skipIf(os.name == 'nt', 'ECS server requires POSIX ownership and permissions; Windows is a client target')
 class EcsRelayTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

@@ -2,7 +2,7 @@
   "schema": "sidecar-toy-native-source/1",
   "app_version": "0.3.3",
   "files": {
-    ".github/workflows/desktop.yml": "fe9265f10a87139f889aad3839cd4c0314a9ecafa766baa20aa83b21d08c8a78",
+    ".github/workflows/desktop.yml": "0fcfd3669a428fb31e3fdbfe4e1db68176dedc12a6ba221f41b7dbda44a16b25",
     ".gitignore": "79538314cbcb052054eb8451159f8a6ebbba4a1a62a8a02b777fd0dba289e62a",
     "AGENTS.md": "48888fd9f3d06a9d17b15be7fda288fcb4ebaa00cac8c65be24890d3cb16d761",
     "CONTINUOUS_GOAL.md": "52fd219ac2f7c14d36024447b4812ff623a165d95195b8f0cf6cacceae07295d",
@@ -171,7 +171,7 @@
     "tests/test_desktop.py": "6c49a08f196f11cdcbaffc849de23c5543c2296851ff692b38eef99207c460aa",
     "tests/test_direct_routing.py": "a68ccfb817879b0ed7f5c6d1cd9d1c7cae7eb6f465bd34f00a8a46ad3499478e",
     "tests/test_discovery.py": "e55df4b5cf38b57fbb2b0cff2432f487ced287ccff6817767a607c7c013e13bc",
-    "tests/test_ecs_relay.py": "a3379764f1adcdd3688b09dcf6f50c6ac70e9976d3bcae885f22cc93fb39b690",
+    "tests/test_ecs_relay.py": "c29ce3a085760dac3a50618665e648eaa8a5269ab0c2a44f7281ab6f54628627",
     "tests/test_gossip_metrics.py": "b08d09bece81580467ef02545b00cd5828fe8026888d81fda2074382406f366a",
     "tests/test_key_store.py": "143a4cf558b4f2e8f3b59b2a5cbd3cab7b89ffbd45b00afb946078fc14668763",
     "tests/test_legacy_dashboard_proxy.py": "6a48a71f99a5ac9f48fb9918f13a3004504a524a275fc9ecc3e0ce5f19a6f931",
