@@ -8,7 +8,7 @@ const venv=path.join(desktop,'.venv');
 const python=path.join(venv,process.platform==='win32'?'Scripts/python.exe':'bin/python');
 
 function run(command,args){
-  const result=spawnSync(command,args,{cwd:root,stdio:'inherit',windowsHide:true});
+  const result=spawnSync(command,args,{cwd:root,stdio:'inherit',windowsHide:true,env:{...process.env,...(process.platform==='darwin'?{OPENSSL_STATIC:'1'}:{})}});
   if(result.error)throw result.error;
   if(result.status!==0)throw new Error(`${path.basename(command)} exited with ${result.status}`);
 }
@@ -40,11 +40,13 @@ try {
     const {command,args}=findPython();run(command,[...args,'-m','venv',venv]);
   }
   const requirements=fs.readFileSync(path.join(desktop,'requirements-build.txt'),'utf8');
+  const buildRequirements=requirements+(process.platform==='darwin'?'\nOPENSSL_STATIC=1\n':'');
   const marker=path.join(venv,'sidecar-build-requirements.txt');
-  if(!fs.existsSync(marker)||fs.readFileSync(marker,'utf8')!==requirements){
-    run(python,['-m','pip','install','-r',path.join(desktop,'requirements-build.txt')]);
-    fs.writeFileSync(marker,requirements);
+  if(!fs.existsSync(marker)||fs.readFileSync(marker,'utf8')!==buildRequirements){
+    run(python,['-m','pip','install','--force-reinstall','--no-cache-dir','-r',path.join(desktop,'requirements-build.txt')]);
+    fs.writeFileSync(marker,buildRequirements);
   }
+  if(process.platform==='darwin')run(python,['-c',"import subprocess; import cryptography.hazmat.bindings._rust as rust; dependencies=subprocess.check_output(['/usr/bin/otool','-L',rust.__file__],text=True); assert 'libssl.' not in dependencies and 'libcrypto.' not in dependencies, dependencies"]);
   if(process.argv[2]==='build'){
     const before=sourceSnapshot();
     run(python,['-m','PyInstaller','--noconfirm','--clean',
