@@ -29,6 +29,8 @@ def check(executable):
                     except Exception:
                         process.kill()
                         raise
+                if not line.strip():
+                    raise AssertionError('Frozen toy backend exited before readiness: ' + (root / 'stderr.log').read_text(errors='replace').replace(token, '[redacted]'))
                 ready = json.loads(line)
                 assert ready["mode"] == "toy" and len(ready["users"]) == 4
                 assert token not in line
@@ -59,7 +61,7 @@ def check(executable):
             finally:
                 if process.poll() is None:
                     process.kill()
-                    process.wait(timeout=5)
+                process.wait(timeout=5)
 
 
 if __name__ == "__main__":

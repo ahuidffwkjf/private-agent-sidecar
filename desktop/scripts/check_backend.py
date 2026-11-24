@@ -28,6 +28,8 @@ def check(executable):
                 finally:
                     pool.shutdown(wait=True)
                 assert token not in ready
+                if not ready.strip():
+                    raise AssertionError('Frozen backend exited before readiness: ' + log.read_text(errors='replace').replace(token, '[redacted]'))
                 url = json.loads(ready)['url']
                 try:
                     urlopen(url + '/ui', timeout=5)
