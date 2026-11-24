@@ -55,9 +55,9 @@ window.SidecarToy = (() => {
     if(active){
       if(!own&&!task.parent_id&&!['pending','approved','joined'].includes(app?.status))buttons+=cmd('apply','申请接单');
       if(app?.status==='pending')buttons+=cmd('withdraw','撤回申请');
-      if(app?.status==='invited')buttons+=cmd('accept_invite','接受子群邀请')+cmd('decline_invite','拒绝子群邀请');
+      if(app?.status==='invited')buttons+=cmd('accept_invite','接受任务邀请')+cmd('decline_invite','拒绝任务邀请');
       if(own&&task.status==='offered')buttons+=cmd('accept_subtask','接受负责子任务')+cmd('decline_subtask','拒绝负责子任务');
-      if(own&&task.status!=='offered')buttons+=cmd('subtask','创建子任务')+(task.parent_id?cmd('invite','邀请父群成员'):'')+cmd('summary-retry','重新生成摘要')+cmd('cancel','取消任务');
+      if(own&&task.status!=='offered')buttons+=cmd('subtask','创建子任务')+cmd('invite',task.parent_id?'邀请父群成员':'邀请在线用户')+cmd('summary-retry','重新生成摘要')+cmd('cancel','取消任务');
       if(task.is_member&&task.status!=='offered')buttons+=cmd('submit','提交结果');
       if(own&&!task.parent_id)buttons+=cmd('finish','结束任务');
       if(!own&&task.is_member)buttons+=cmd('leave','退出任务');
@@ -89,9 +89,11 @@ window.SidecarToy = (() => {
     if(command==='apply')return confirm('申请接单',`申请加入「${task.title}」及项目群。批准后启用群内临时信任，并采集群聊内容；不会升级全局信任。`,()=>action('apply',{terms_hash:task.terms_hash,proposal:'愿意参加该任务'}));
     if(['accept_invite','accept_subtask'].includes(command))return confirm('确认参与','同意此任务、群成员权限与实验采集；不自动加入其他群。',()=>action(command,{terms_hash:task.terms_hash}));
     if(command==='invite'){
-      const parent=tasks.find(t=>t.task_id===task.parent_id);const members=host.projects().find(p=>p.project_id===parent?.project_id)?.project_members||[];
-      host.modal('邀请父群成员',`<select id="toy-invite-node">${members.filter(m=>m.agent_id!==me()).map(m=>`<option value="${esc(m.agent_id)}">${esc(host.peerName(m.agent_id))}</option>`).join('')}</select><button class="primary" id="toy-invite-confirm">邀请</button>`);
-      $('#toy-invite-confirm').onclick=()=>run(async()=>{await action('invite',{node_id:$('#toy-invite-node').value});$('#dialog').close();});return;
+      return run(async()=>{
+      const parent=tasks.find(t=>t.task_id===task.parent_id);const members=task.parent_id?(host.projects().find(p=>p.project_id===parent?.project_id)?.project_members||[]):((await host.api('/v1/peers/candidates')).peers||[]).filter(p=>p.online===true);
+      const candidates=members.filter(m=>m.agent_id!==me()&&!task.member_ids?.includes(m.agent_id));
+      host.modal(task.parent_id?'邀请父群成员':'邀请在线用户',`<select id="toy-invite-node">${candidates.map(m=>`<option value="${esc(m.agent_id)}">${esc(host.peerName(m.agent_id))}</option>`).join('')}</select>${candidates.length?'':'<p>暂无可邀请的在线用户</p>'}<button class="primary" id="toy-invite-confirm" ${candidates.length?'':'disabled'}>发送邀请</button>`);
+      $('#toy-invite-confirm').onclick=()=>run(async()=>{await action('invite',{node_id:$('#toy-invite-node').value});$('#dialog').close();});});
     }
     if(command==='submit'){
       host.modal('提交结果','<form id="toy-result"><label>结果说明<textarea name="text" rows="5" required></textarea></label><label>引用（可选）<input name="reference"></label><button class="primary">提交</button></form>');

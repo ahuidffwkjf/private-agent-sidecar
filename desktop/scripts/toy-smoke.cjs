@@ -13,6 +13,7 @@ function executable(){
 async function run(){
   const started=performance.now();
   const data=fs.mkdtempSync(path.join(os.tmpdir(),'sidecar-toy-smoke-'));
+  fs.writeFileSync(path.join(data,'connection.json'),JSON.stringify({mode:'local'}));
   const env={...process.env,SIDECAR_SMOKE_DATA_DIR:data};
   delete env.ELECTRON_RUN_AS_NODE;delete env.PYTHONPATH;delete env.PYTHONHOME;
   let application;

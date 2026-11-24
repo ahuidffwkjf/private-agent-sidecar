@@ -23,6 +23,10 @@ This repository develops the encrypted communication and collaboration Sidecar. 
 
 ## Security invariants
 
+- ECS online Toy mode explicitly uses signed, end-to-end encrypted Relay delivery;
+  never silently enable this transport for existing direct-only Sidecars.
+- Public desktop installers must not contain ECS access tokens, SSH passwords,
+  private keys or pre-consented identities. Provision access separately.
 - The active toy workflow has no reward or decision-model prerequisites; preserve legacy bounty data separately.
 - Toy private/group content collection requires explicit experiment consent; standard mode must not upload it.
 - Research ingestion is node-authenticated; query/export/deletion require separate administrator authorization.

@@ -172,7 +172,10 @@ def main():
         stopped.set()
 
     with contextlib.redirect_stdout(sys.stderr):
-        if config.get('mode') == 'toy':
+        if config.get('mode') == 'ecs':
+            from .online_desktop import OnlineDesktopRuntime
+            runtime = OnlineDesktopRuntime(root, config['token'], config['access_file'])
+        elif config.get('mode') == 'toy':
             from .toy_desktop import ToyDesktopRuntime
             runtime = ToyDesktopRuntime(root, config['token'])
         else:
@@ -180,6 +183,8 @@ def main():
         try:
             url = runtime.start()
             ready = {'url': url, 'pid': os.getpid()}
+            if config.get('mode') == 'ecs':
+                ready['mode'] = 'ecs'
             if config.get('mode') == 'toy':
                 ready['users'] = runtime.users
                 ready['mode'] = 'toy'

@@ -12,7 +12,7 @@
   const titles = {chats:'聊天', contacts:'通讯录', discover:'发现', skills:'Skills', me:'我'};
   const toy=window.SidecarToy;
   let desktopToyStarted=false;
-  toy?.init({api,esc,icon,heading,setContent,modal,toast,peerName:id=>peerName(id),projects:()=>state.projects,
+  toy?.init({api,esc,icon,heading,setContent,modal,toast,peerName:id=>peerName(id),projects:()=>state.projects,peers:()=>state.peers,
     selectTask:id=>{saveDraft();state.view='discover';state.selected=id;state.revision++;$('#view-title').textContent='发现';document.querySelectorAll('.nav-button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view==='discover'));$('#app').classList.add('detail-open');renderList();renderDetail(true);},
     openProject:id=>{chooseView('chats');select('project:'+id);}});
   const relations = {pending:'待添加', trusting:'等待对方确认', trusted_by_peer:'对方已信任你', mutual:'双向信任',
@@ -76,7 +76,7 @@
     } else if (state.view==='contacts') {
       html=row('requests','新的联系人','信任申请与项目邀请','user-round-plus','amber',String(state.notifications.filter(n=>n.decision==='trust'&&!n.outgoing_trust).length+state.invitations.filter(i=>i.status==='pending').length));
       html+='<div class="section-label">节点联系人</div>';
-      html+=state.peers.filter(p=>match(p.display_name,p.agent_id)).map(p=>row(p.agent_id,peerName(p.agent_id),relations[p.relationship_state]||p.relationship_state,'user-round')).join('');
+      html+=state.peers.filter(p=>match(p.display_name,p.agent_id)).sort((a,b)=>Number(b.online===true)-Number(a.online===true)).map(p=>row(p.agent_id,peerName(p.agent_id),(p.online===undefined?'':p.online?'在线 · ':'离线 · ')+(relations[p.relationship_state]||p.relationship_state),'user-round')).join('');
       if (!state.peers.length) html+='<p class="empty-small">尚未发现其他节点</p>';
     } else if (state.view==='skills') {
       const skills=filteredSkills();
@@ -160,7 +160,7 @@
       const peer=state.peers.find(p=>p.agent_id===state.selected);
       if (!peer) { heading('通讯录','节点联系人'); setContent(empty('请选择联系人'),force); return; }
       heading('联系人资料',relations[peer.relationship_state]||peer.relationship_state);
-      setContent(`<section class="page-section"><div class="profile-block">${avatar('private',short(peer.agent_id))}<div><h3>${esc(peerName(peer.agent_id))}</h3><p>${esc(peer.agent_id)}</p></div></div>${dl([['关系',relations[peer.relationship_state]||peer.relationship_state],['签名指纹',peer.key_fingerprint||'未提供'],['直连地址',peer.direct?.endpoint||'未配置'],['智能体',(peer.actors||[]).map(a=>`${a.name}\n${a.actor_id}`).join('\n\n')||'暂无公开身份']])}<div class="page-actions">${peer.relationship_state==='mutual'?'<button class="primary" data-command="chat">发消息</button><button class="secondary" data-command="actor-send">发给智能体</button>':!peer.outgoing_trust?'<button class="primary" data-command="trust">添加联系人</button>':'<span class="badge">等待对方确认</span>'}${peer.outgoing_trust?'<button class="secondary danger" data-command="revoke">撤销信任</button>':''}</div></section>`,force);
+      setContent(`<section class="page-section"><div class="profile-block">${avatar('private',short(peer.agent_id))}<div><h3>${esc(peerName(peer.agent_id))}</h3><p>${esc(peer.agent_id)}</p></div></div>${dl([['关系',relations[peer.relationship_state]||peer.relationship_state],['在线状态',peer.online===undefined?'未探测':peer.online?'在线':'离线'],['签名指纹',peer.key_fingerprint||'未提供'],['通信路线',peer.direct?.transport==='relay-ciphertext'?'ECS 密文转发':peer.direct?.endpoint||'未配置'],['智能体',(peer.actors||[]).map(a=>`${a.name}\n${a.actor_id}`).join('\n\n')||'暂无公开身份']])}<div class="page-actions">${peer.relationship_state==='mutual'?'<button class="primary" data-command="chat">发消息</button><button class="secondary" data-command="actor-send">发给智能体</button>':!peer.outgoing_trust?'<button class="primary" data-command="trust">添加联系人</button>':'<span class="badge">等待对方确认</span>'}${peer.online?'<button class="secondary" data-command="task-invite">邀请参加任务</button>':''}${peer.outgoing_trust?'<button class="secondary danger" data-command="revoke">撤销信任</button>':''}</div></section>`,force);
     } else if (state.view==='skills') {
       $('#detail-action').hidden=true;
       const skill=state.skills.find(s=>s.skill_id===state.selected);
@@ -198,7 +198,9 @@
     const requests=state.notifications.filter(n=>n.decision==='trust'&&!n.outgoing_trust);
     const invites=state.invitations.filter(i=>i.status==='pending');
     const html=requests.map(n=>`<article class="notice-row"><h3>${esc(peerName(n.issuer_agent_id))}</h3><p>对方请求建立双向信任</p><p>${esc(n.issuer_agent_id)}</p><div class="page-actions"><button class="primary" data-trust-response="accept" data-peer="${esc(n.issuer_agent_id)}">接受并信任</button><button class="secondary" data-trust-response="reject" data-peer="${esc(n.issuer_agent_id)}">拒绝</button></div></article>`).join('')+invites.map(i=>`<article class="notice-row"><h3>${esc(i.project_name)}</h3><p>项目邀请 · ${esc(i.owner_agent_id)}</p><div class="page-actions"><button class="primary" data-invite-response="accept" data-invite="${esc(i.invitation_id)}">接受并加入</button><button class="secondary" data-invite-response="reject" data-invite="${esc(i.invitation_id)}">拒绝</button></div></article>`).join('');
-    setContent(html?`<section class="page-section">${html}</section>`:empty('暂无新申请','','user-round-check'),force);
+    const taskInvites=(toy?.tasks()||[]).filter(t=>t.applications?.[state.identity?.agent_id]?.status==='invited');
+    const allHtml=html+taskInvites.map(t=>`<article class="notice-row"><h3>${esc(t.title)}</h3><p>任务邀请 · ${esc(peerName(t.owner_id))}</p><button class="primary" data-open-task="${esc(t.task_id)}">查看邀请与权限</button></article>`).join('');
+    setContent(allHtml?`<section class="page-section">${allHtml}</section>`:empty('暂无新申请','','user-round-check'),force);
   }
   function modal(title, html) {
     $('#dialog-title').textContent=title; $('#dialog-body').innerHTML=html; icons();
@@ -242,6 +244,9 @@
       }
       const offline=results.some(r=>r.status==='rejected');
       $('.connection').classList.toggle('online',!offline);$('#connection-label').textContent=offline?'部分服务不可用':'Sidecar 已连接';
+      if(new URLSearchParams(location.search).get('online')==='1'){
+        try{const network=await api('/v1/online/status');const connected=!offline&&network.last_connected&&Date.now()/1000-network.last_connected<90;$('.connection').classList.toggle('online',!!connected);$('#connection-label').textContent=connected?`ECS 已连接${network.pending_messages?' · '+network.pending_messages+' 条待投递':''}${network.failed_messages?' · '+network.failed_messages+' 条未送达':''}`:'ECS 未连接 · 正在重试';}catch{$('#connection-label').textContent='ECS 状态不可用';}
+      }
       if(offline)error('部分服务暂时不可用，当前保留最近一次数据。');
       renderList();
       // Message reads remain available even when peer discovery through Relay fails.
@@ -262,7 +267,7 @@
       const failed=(result.deliveries||[]).filter(d=>d.status==='failed');
       if(failed.length)throw new Error(failed[0].error||'直连投递失败');
       const pending=(result.sync?.deliveries||[]).some(d=>d.status==='failed');
-      const queued=(result.deliveries||[]).some(d=>d.status==='queued');
+      const queued=[...(result.deliveries||[]),...(result.sync?.deliveries||[])].some(d=>d.status==='queued');
       if(state.drafts.get(conversation.id)===draft)state.drafts.delete(conversation.id);
       if(revision===state.revision) {
         if($('#message').value===draft)$('#message').value='';
@@ -320,12 +325,17 @@
   }
   function inviteMember(project) {
     const members=new Set((project.project_members||[]).map(m=>m.agent_id));
-    const candidates=state.peers.filter(p=>!members.has(p.agent_id));
+    const candidates=state.peers.filter(p=>!members.has(p.agent_id)&&p.online!==false);
     modal('邀请成员',`<form id="invite-form"><div class="choices">${candidates.map(p=>`<label><input type="checkbox" name="member" value="${esc(p.agent_id)}"><span>${esc(peerName(p.agent_id))}</span></label>`).join('')||'<p>暂无可邀请的节点</p>'}</div><div class="page-actions"><button class="primary" ${candidates.length?'':'disabled'}>发送邀请</button></div><p id="invite-error" role="alert"></p></form>`);
     $('#invite-form').onsubmit=async e=>{e.preventDefault();const ids=[...e.currentTarget.querySelectorAll('input:checked')].map(x=>x.value);if(!ids.length)return;const button=e.currentTarget.querySelector('button');button.disabled=true;const results=await Promise.allSettled(ids.map(id=>api(`/v1/projects/${enc(project.project_id)}/invitations`,{agent_id:id})));const failed=results.filter(r=>r.status==='rejected');$('#invite-error').textContent=failed.length?`${failed.length} 个邀请失败：${failed[0].reason.message}`:'邀请已发送，等待对方接受';button.disabled=false;};
   }
   async function command(name) {
     const peer=state.peers.find(p=>p.agent_id===state.selected);
+    if(name==='task-invite'&&peer){
+      const tasks=(toy?.tasks()||[]).filter(t=>t.owner_id===state.identity?.agent_id&&!t.parent_id&&t.status==='open');
+      modal('邀请参加任务',`<form id="contact-task-invite"><select name="task">${tasks.map(t=>`<option value="${esc(t.task_id)}">${esc(t.title)}</option>`).join('')}</select>${tasks.length?'':'<p>暂无你发布的开放任务</p>'}<button class="primary" ${tasks.length?'':'disabled'}>发送邀请</button><p role="alert" id="contact-invite-error"></p></form>`);
+      $('#contact-task-invite').onsubmit=async event=>{event.preventDefault();const form=event.currentTarget;form.querySelector('button').disabled=true;try{await api('/v1/tasks/'+enc(form.elements.task.value)+'/actions',{action:'invite',node_id:peer.agent_id});$('#dialog').close();toast('邀请已发送，等待对方确认');}catch(e){$('#contact-invite-error').textContent=e.message;form.querySelector('button').disabled=false;}};
+    }
     if(name==='chat'&&peer){chooseView('chats');select(`private:${peer.agent_id}`);}
     if(name==='public-chat'){chooseView('chats');select('public');$('#message').focus();}
     if(name==='skills')chooseView('skills');
@@ -359,6 +369,7 @@
     if(target.dataset.view)chooseView(target.dataset.view);
     if(target.dataset.select)select(target.dataset.select);
     if(target.dataset.command)command(target.dataset.command);
+    if(target.dataset.openTask)toy?.show('task:'+target.dataset.openTask);
     if(target.dataset.actorInbox){
       api('/v1/actors/inbox?actor_id='+enc(target.dataset.actorInbox)).then(r=>modal('智能体收件箱',r.messages.map(m=>`<article class="notice-row"><h3>${esc(m.payload.sender_actor.name)}</h3><p>${esc(m.payload.text)}</p><p>${esc(m.sender_node_id)}</p></article>`).join('')||'<p>暂无消息</p>')).catch(e=>error(e.message));
     }

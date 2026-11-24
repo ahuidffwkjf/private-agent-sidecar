@@ -575,7 +575,7 @@ class Sidecar:
                     if payload["decision"] == "accept":
                         membership = self.trust_for_project(stored["project_id"], sender.agent_id, sender.signing_key)
                         target_delivery = next((item for item in membership.get("membership_deliveries", []) if item.get("recipient_id") == sender.agent_id), None)
-                        delivery_complete = bool(target_delivery and target_delivery.get("status") != "failed")
+                        delivery_complete = bool(target_delivery and target_delivery.get("status") in {"delivered", "accepted", "duplicate"})
                         final_status = "completed" if delivery_complete else "accepted"
                         self.store.update_project_invitation(invitation_id, final_status, payload, message_id)
                         completed.append({"invitation_id": invitation_id, "membership": membership, "membership_delivery_pending": not delivery_complete})
@@ -602,7 +602,7 @@ class Sidecar:
                 membership = self.project_manifest(project_id)
                 deliveries = self._distribute_project_manifest(project_id, membership)
                 target_delivery = next((item for item in deliveries if item.get("recipient_id") == invitee_id), None)
-                if not target_delivery or target_delivery.get("status") == "failed":
+                if not target_delivery or target_delivery.get("status") not in {"delivered", "accepted", "duplicate"}:
                     raise ValueError((target_delivery or {}).get("error") or "invitee membership delivery is still unavailable")
                 self.store.update_project_invitation(invitation["invitation_id"], "completed", invitation.get("response"), invitation.get("response_message_id") or "")
                 result = {"invitation_id": invitation["invitation_id"], "status": "completed", "delivery": target_delivery}
@@ -1602,7 +1602,9 @@ class Sidecar:
         self.store.add_trace("message.sent", self.identity.agent_id, {"message_id": envelope["message_id"], "recipient_id": recipient_id, "project_id": project_id or None})
         return envelope["message_id"]
 
-    def receive_direct(self, body: Dict[str, Any]) -> Dict[str, Any]:
+    def receive_direct(self, body: Dict[str, Any], *, transport: str = "direct") -> Dict[str, Any]:
+        if transport not in {"direct", "relay-ciphertext"}:
+            raise ValueError("invalid delivery transport")
         envelope = body.get("envelope") if isinstance(body, dict) else None
         scope = str(body.get("scope") or "") if isinstance(body, dict) else ""
         if not isinstance(envelope, dict):
@@ -1656,7 +1658,7 @@ class Sidecar:
             if not is_new:
                 return {'status': 'duplicate', 'message_id': envelope['message_id']}
             if is_new:
-                self.store.add_trace(f"{event_prefix}.received", envelope["sender_id"], {"message_id": envelope["message_id"], "recipient_id": self.identity.agent_id, "project_id": project_id or None, "transport": "direct"})
+                self.store.add_trace(f"{event_prefix}.received", envelope["sender_id"], {"message_id": envelope["message_id"], "recipient_id": self.identity.agent_id, "project_id": project_id or None, "transport": transport})
             if scope == "membership" and message.get("type") == "project.membership.manifest":
                 result = self.apply_project_manifest(message.get("payload") or {})
                 return {"status": "accepted", "message_id": envelope["message_id"], "membership": result}

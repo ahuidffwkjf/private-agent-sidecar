@@ -233,18 +233,18 @@ class TaskDirectory:
             task["status"] = "cancelled"
         elif op == "invite":
             self._owner(task, node)
-            if not task["parent_id"] or task["status"] == "offered":
-                raise ValueError("only active subgroups use directed invitations")
+            if task["status"] == "offered":
+                raise ValueError("only active groups use directed invitations")
             target = data["node_id"]
             self._same_experiment(profiles, node, target)
-            if target == node or not self._member(tasks[task["parent_id"]], target):
+            if target == node or (task["parent_id"] and not self._member(tasks[task["parent_id"]], target)):
                 raise ValueError("invitee must be a direct parent group member")
             if target not in task["applications"] or task["applications"][target]["status"] in {"rejected", "left"}:
                 task["applications"][target] = {"status": "invited", "invitation": request}
         elif op == "accept_invite":
             app = task["applications"].get(node)
-            if not app or app["status"] != "invited" or data.get("terms_hash") != self._terms(task) or not self._member(tasks[task["parent_id"]], node):
-                raise ValueError("invalid subgroup invitation")
+            if not app or app["status"] != "invited" or data.get("terms_hash") != self._terms(task) or (task["parent_id"] and not self._member(tasks[task["parent_id"]], node)):
+                raise ValueError("invalid task invitation")
             app.update(status="approved", consent=request, approval=app["invitation"])
         elif op == "decline_invite":
             app = task["applications"].get(node)

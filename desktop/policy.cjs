@@ -1,6 +1,7 @@
 const path=require('node:path');
 const {fileURLToPath}=require('node:url');
 function validateConnection(value){
+  if(value?.mode==='ecs')return {mode:'ecs'};
   if(value?.mode==='local')return {mode:'local'};
   if(value?.mode!=='remote'||typeof value.url!=='string')throw new Error('请选择本机工作区或现有 Sidecar 服务');
   let url;try{url=new URL(value.url);}catch{throw new Error('请输入完整的 Sidecar 地址');}

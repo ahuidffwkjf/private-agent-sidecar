@@ -28,8 +28,11 @@ chat transport and the experimental research collector are separate.
 
 ## Next Priority
 
-Validate a real publisher DSH in a tool-disabled isolated summary environment,
-then pilot the implemented toy workflow with consenting users on reachable TLS
-nodes. Do not start reward design or model training instead of this usability
-acceptance. Real credentials, sandbox launchers and cross-machine connectivity
-are explicit external prerequisites; demo summaries are never real-model evidence.
+Complete the ECS-hosted Toy rollout: one independent local identity per desktop,
+ECS as the default shared Relay and task directory, explicit encrypted Relay
+delivery, online discovery and consented invitations. OrangePi is no longer the
+active deployment target; keep its inaccessible historical database untouched.
+Public port reachability, HTTPS trust provisioning and real multi-user acceptance
+are release evidence, not assumptions. Never embed access tokens in public apps.
+Keep the four-user local demo optional. Real DSH summaries remain a later,
+credential-dependent acceptance task; do not resume rewards or model training.

@@ -13,9 +13,10 @@ if(process.env.SIDECAR_SMOKE_DATA_DIR){
   app.setPath('userData',process.env.SIDECAR_SMOKE_DATA_DIR);
 }
 const root=path.resolve(__dirname,'..');
-let window,settingsWindow,backend,config={mode:'local'},origin='',quitting=false,backendReady=false;
+let window,settingsWindow,backend,config={mode:'ecs'},origin='',quitting=false,backendReady=false;
 let localUsers=[],selectedUser='Alice';
 const settingsFile=()=>path.join(app.getPath('userData'),'connection.json');
+const accessFile=()=>path.join(app.getPath('userData'),'ecs-access.private.json');
 const settingsURL=require('node:url').pathToFileURL(path.join(__dirname,'settings.html')).href;
 
 function writeSettings(value){
@@ -25,7 +26,7 @@ function writeSettings(value){
 }
 function connectionSettings(){
   if(settingsWindow&&!settingsWindow.isDestroyed()){settingsWindow.focus();return;}
-  settingsWindow=new BrowserWindow({width:560,height:460,minWidth:480,minHeight:420,parent:window,
+  settingsWindow=new BrowserWindow({width:580,height:650,minWidth:480,minHeight:560,parent:window,
     title:'连接设置',autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
   settingsWindow.webContents.setWindowOpenHandler(()=>({action:'deny'}));
   settingsWindow.webContents.on('will-navigate',(event,url)=>{if(!trustedLocalFileNavigation(url,settingsURL))event.preventDefault();});
@@ -63,6 +64,7 @@ async function stopBackend(){
   });
 }
 async function startBackend(){
+  if(config.mode==='ecs'&&!fs.existsSync(accessFile()))throw new Error('请先在连接设置中导入 ECS 接入文件。');
   const token=randomBytes(32).toString('hex');
   const command=backendCommand({packaged:app.isPackaged,resources:process.resourcesPath,root});
   if(!fs.existsSync(command.file))throw new Error('找不到本机后端。源码运行请先执行 npm run setup；发行版请重新安装完整安装包。');
@@ -86,7 +88,7 @@ async function startBackend(){
     });
     // Session token is private IPC data; never command-line arguments or query strings.
     child.stdin.on('error',()=>{});
-    child.stdin.write(JSON.stringify({token,data_dir:path.join(app.getPath('userData'),'workspace'),mode:'toy'})+'\n');
+    child.stdin.write(JSON.stringify({token,data_dir:path.join(app.getPath('userData'),config.mode==='ecs'?'ecs-workspace':'workspace'),mode:config.mode==='ecs'?'ecs':'toy',...(config.mode==='ecs'?{access_file:accessFile()}:{})})+'\n');
   });
   backendReady=true;
   child.once('exit',()=>{
@@ -96,9 +98,9 @@ async function startBackend(){
 }
 async function start(){
   try {if(fs.existsSync(settingsFile()))config=validateConnection(JSON.parse(fs.readFileSync(settingsFile(),'utf8')));}
-  catch {config={mode:'local'};await dialog.showMessageBox({type:'warning',message:'连接设置无效，已切换到本机工作区。'});}
+  catch {config={mode:'ecs'};await dialog.showMessageBox({type:'warning',message:'连接设置无效，请重新配置 ECS 接入。'});}
   const isolated=session.fromPartition(`sidecar-${randomBytes(12).toString('hex')}`);
-  if(config.mode==='local')await isolated.setProxy({mode:'direct'});
+  if(config.mode!=='remote')await isolated.setProxy({mode:'direct'});
   isolated.setPermissionRequestHandler((_contents,_permission,callback)=>callback(false));
   isolated.setPermissionCheckHandler(()=>false);
   window=new BrowserWindow({width:1180,height:800,minWidth:920,minHeight:620,title:'Sidecar Toy',backgroundColor:'#f5f5f5',
@@ -111,14 +113,15 @@ async function start(){
   for(const eventName of ['will-navigate','will-redirect'])window.webContents.on(eventName,(event,url)=>{if(!trustedNavigation(url,origin))event.preventDefault();});
   window.webContents.on('will-attach-webview',event=>event.preventDefault());
   await window.loadFile(path.join(__dirname,'assets/loading.html'));window.show();
+  if(config.mode==='ecs'&&!fs.existsSync(accessFile())){connectionSettings();return;}
   try {
-    if(config.mode==='local'){
+    if(config.mode!=='remote'){
       const result=await startBackend();origin=result.origin;
       localUsers=result.users;
       for(const url of localUsers.length?localUsers.map(u=>u.url):[origin])await isolated.cookies.set({url,name:'sidecar_desktop_session',value:result.token,httpOnly:true,sameSite:'strict',path:'/'});
       createMenu();
     }else origin=config.url;
-    await window.loadURL(origin+(localUsers.length?'/ui?desktop=1&toy=1':'/ui?desktop=1'));
+    await window.loadURL(origin+(config.mode==='ecs'?'/ui?desktop=1&toy=1&online=1':localUsers.length?'/ui?desktop=1&toy=1':'/ui?desktop=1'));
   } catch(error){
     await stopBackend();
     if(quitting)return;
@@ -130,9 +133,30 @@ if(!app.requestSingleInstanceLock())app.quit();
 else {
   app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
   app.whenReady().then(()=>{
-    ipcMain.handle('connection:read',event=>{settingsSender(event);return config;});
+    ipcMain.handle('connection:read',event=>{settingsSender(event);return {...config,ecsConfigured:fs.existsSync(accessFile())};});
+    ipcMain.handle('connection:import',async event=>{
+      settingsSender(event);
+      const selected=await dialog.showOpenDialog(settingsWindow,{properties:['openFile'],filters:[{name:'ECS 接入文件',extensions:['json']}]});
+      if(selected.canceled)return {configured:fs.existsSync(accessFile())};
+      const filename=selected.filePaths[0];
+      if(fs.statSync(filename).size>32768)throw new Error('接入文件过大');
+      const access=JSON.parse(fs.readFileSync(filename,'utf8'));
+      const expected=['schema','relay_url','relay_token','ca_pem','experiment_id'].sort();
+      if(JSON.stringify(Object.keys(access).sort())!==JSON.stringify(expected)||access.schema!=='sidecar-ecs-access/1')throw new Error('不是有效的 ECS 接入文件');
+      const relayURL=new URL(access.relay_url);
+      if(relayURL.protocol!=='https:'||relayURL.username||relayURL.password||relayURL.search||relayURL.hash||relayURL.pathname!=='/'||!relayURL.port)throw new Error('接入文件必须使用带端口的 HTTPS 服务地址');
+      if(typeof access.relay_token!=='string'||access.relay_token.length<32||access.relay_token.length>4096||typeof access.experiment_id!=='string'||!access.experiment_id||access.experiment_id.length>100)throw new Error('接入字段无效');
+      const certificate=new (require('node:crypto').X509Certificate)(access.ca_pem);
+      if(!certificate.ca||Date.parse(certificate.validTo)<=Date.now())throw new Error('接入证书无效或已过期');
+      const answer=await dialog.showMessageBox(settingsWindow,{type:'question',message:'信任此 ECS 接入配置？',detail:access.relay_url+'\nCA SHA-256: '+certificate.fingerprint256,buttons:['取消','导入'],defaultId:0,cancelId:0});
+      if(answer.response!==1)return {configured:fs.existsSync(accessFile())};
+      fs.mkdirSync(path.dirname(accessFile()),{recursive:true,mode:0o700});
+      fs.writeFileSync(accessFile()+'.tmp',JSON.stringify(access),{mode:0o600});fs.renameSync(accessFile()+'.tmp',accessFile());
+      return {configured:true};
+    });
     ipcMain.handle('connection:save',async(event,value)=>{
       settingsSender(event);const next=validateConnection(value);
+      if(next.mode==='ecs'&&!fs.existsSync(accessFile()))throw new Error('请先导入管理员提供的 ECS 接入文件');
       if(next.mode==='remote'){
         const answer=await dialog.showMessageBox(settingsWindow,{type:'question',message:'连接到此 Sidecar 服务？',detail:next.url+'\n该服务将提供应用页面和数据，仅连接你信任的服务。',buttons:['取消','连接'],defaultId:0,cancelId:0});
         if(answer.response!==1)return {saved:false};

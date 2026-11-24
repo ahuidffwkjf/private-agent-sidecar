@@ -10,6 +10,7 @@ test('settings file URL permits equivalent tilde encoding but no other file or o
   for(const url of [expected+'?x=1',expected+'#x',expected.replace('settings.html','preload.cjs'),expected.replace('file:','https:'),'file://other/settings.html','javascript:alert(1)',expected.replace('settings.html','%2fsettings.html')])assert(!trustedLocalFileNavigation(url,expected));
 });
 test('remote connections require TLS except exact loopback hosts',()=>{
+  assert.deepEqual(validateConnection({mode:'ecs'}),{mode:'ecs'});
   assert.deepEqual(validateConnection({mode:'local'}),{mode:'local'});
   assert.equal(validateConnection({mode:'remote',url:'https://example.com/ui'}).url,'https://example.com');
   assert.equal(validateConnection({mode:'remote',url:'http://127.0.0.1:8801'}).url,'http://127.0.0.1:8801');

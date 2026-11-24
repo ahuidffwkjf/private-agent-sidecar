@@ -59,6 +59,8 @@ jobs:
           PY
       - run: python -m unittest discover -s tests -p test_desktop.py -v
       - run: python -m unittest discover -s tests -p test_toy_desktop.py -v
+      - run: python -m unittest discover -s tests -p 'test_online*.py' -v
+      - run: python -m unittest discover -s tests -p test_ecs_relay.py -v
       - run: npm run dist
         working-directory: desktop
         env:
@@ -91,6 +93,14 @@ jobs:
           else
             node desktop/scripts/verify-download.cjs
           fi
+      - name: Validate default ECS desktop workflow
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            xvfb-run -a node desktop/scripts/online-smoke.cjs
+          else
+            node desktop/scripts/online-smoke.cjs
+          fi
       - name: Collect only verified distributables
         shell: bash
         run: |
@@ -108,7 +118,9 @@ jobs:
           for path in assets:
               shutil.copy2(path,output/path.name)
               checksums[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
-          result = {'source_commit':os.environ['GITHUB_SHA'],'runner':'${{ matrix.os }}','checksums':checksums,'download_validation':validation,'native_smoke':json.loads((root/'toy-desktop-smoke.json').read_text())}
+          online = json.loads((root/'online-desktop-smoke.json').read_text())
+          assert online['status'] == 'passed'
+          result = {'source_commit':os.environ['GITHUB_SHA'],'runner':'${{ matrix.os }}','checksums':checksums,'download_validation':validation,'native_smoke':json.loads((root/'toy-desktop-smoke.json').read_text()),'ecs_native_smoke':online}
           (output/'validation-${{ matrix.id }}.json').write_text(json.dumps(result,indent=2)+'\n')
           PY
       - uses: actions/upload-artifact@v4
@@ -129,7 +141,7 @@ jobs:
             desktop/release/**/*smoke*.png
   publish:
     name: Publish only after all four native validations
-    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    if: startsWith(github.ref, 'refs/tags/desktop-v') && vars.ECS_PUBLIC_INGRESS_VERIFIED == 'true'
     needs: build
     runs-on: ubuntu-22.04
     permissions:
@@ -158,9 +170,9 @@ jobs:
           packages = sorted(p for p in root.iterdir() if p.suffix in {'.dmg','.zip','.exe','.AppImage','.deb'})
           assert len(packages) == 8
           (root/'SHA256SUMS').write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest()+'  '+p.name+'\n' for p in packages))
-          shutil.copy2('docs/TOY_CROSS_PLATFORM_GUIDE.md', root/'Sidecar-Toy-Download-Guide.zh-CN.md')
+          shutil.copy2('docs/TOY_ECS_GUIDE.md', root/'Sidecar-Toy-Download-Guide.zh-CN.md')
           PY
       - name: Publish verified preview
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release-assets/* --verify-tag --prerelease --title "Sidecar Toy 0.3.2 · Windows / Linux / macOS" --notes-file docs/TOY_CROSS_PLATFORM_RELEASE.md
+        run: gh release create "$GITHUB_REF_NAME" release-assets/* --verify-tag --prerelease --title "Sidecar Toy 0.3.3 ECS · Windows / Linux / macOS" --notes-file docs/TOY_ECS_GUIDE.md
